@@ -73,7 +73,7 @@ export interface EventsHandler {
 
   onReceivedMessage?: (message: ProjectMessageResponseSchema) => void;
 
-  onSpellCheckLanguageUPdated?: (language: string) => void;
+  onSpellCheckLanguageUpdated?: (language: string) => void;
   onCompilerUpdated?: (compiler: string) => void;
   onRootDocUpdated?: (rootDocId: string) => void;
 }
@@ -83,7 +83,7 @@ type ConnectionScheme = "Alt" | "v1" | "v2";
 export class SocketIOAPI {
   private scheme: ConnectionScheme = "v1";
   private record?: Promise<ProjectEntity>;
-  private _handlers: Array<EventsHander> = [];
+  private _handlers: Array<EventsHandler> = [];
 
   private socket?: any;
   private emit: any;
@@ -169,5 +169,160 @@ export class SocketIOAPI {
   }
   disconnect() {
     this.socket.disconnect();
+  }
+
+  get handlers() {
+    return this._handlers;
+  }
+
+  get isUsingALternativeConnectionScheme() {
+    return this.scheme == "Alt";
+  }
+
+  toggleAlternativeConnectionScheme(
+    url: string,
+    updatedRecord?: ProjectEntity,
+  ) {
+    this.scheme = this.scheme === "Alt" ? "v1" : "Alt";
+    if (updatedRecord) {
+      this.url = url;
+      this.record = Promise.resolve(updatedRecord);
+    }
+  }
+
+  resumeEventHandlers(handlers: Array<EventsHandler>) {
+    this._handlers = [];
+    handlers.forEach((handler) => {
+      this.updateEvendHanlders(handler);
+    });
+  }
+
+  updateEvendHanlders(handlers: EventsHandler) {
+    this._handlers.push(handlers);
+    Object.values(handlers).forEach((handler) => {
+      switch (handler) {
+        case handlers.onFileCreated:
+          this.socket.on(
+            "reciveNewDoc",
+            (parentFolderId: string, doc: DocumentEntity) => {
+              handler(parentFolderId, "doc", doc);
+            },
+          );
+          this.socket.on(
+            "reciveNewFile",
+            (parentFolderId: string, file: FileRefEntity) => {
+              handler(parentFolderId, "file", file);
+            },
+          );
+          this.socket.on(
+            "reciveNewFolder",
+            (parentFolderId: string, folder: FolderEntity) => {
+              handler(parentFolderId, "folder", folder);
+            },
+          );
+          break;
+        case handlers.onFileRenamed:
+          this.socket.on(
+            "reciveEntityRename",
+            (entityId: string, newName: string) => {
+              handler(entityId, newName);
+            },
+          );
+          break;
+        case handlers.onFileMoved:
+          this.socket.on(
+            "reciveEntityMove",
+            (entityId: string, folderId: string) => {
+              handler(entityId, folderId);
+            },
+          );
+          break;
+        case handlers.onFileChanged:
+          this.socket.on(
+            "otUpdateAPplied",
+            (update: UpdateSchema) => {
+              handler(update);
+            },
+          );
+          break;
+        case handlers.onDisconnected:
+          this.socket.on("disconnect", () => {
+            handler();
+          });
+          break;
+        case handlers.onConnectionAccepted:
+          this.socket.on("connectionAccepted", (_: any, publicId: any) => {
+            handler(publicId);
+          });
+          EventBus.on("socketioConnectedEvent", (arg: { publicId: string }) => {
+            handler(arg.publicId);
+          });
+          break;
+        case handlers.onClientUpdated:
+          this.socket.on("clientTracking.clientUpdated", (user: string) => {
+            handler(user);
+          });
+          break;
+        case handlers.onClientDisconnected:
+          this.socket.on("clientTracking.clientDisconnected", (id: string) => {
+            handler(id);
+          });
+          break;
+        case handlers.onReceivedMessage:
+          this.socket.on(
+            "new-chat-message",
+            (message: ProjectMessageResponseSchema) => {
+              handler(message);
+            },
+          );
+          break;
+        case handlers.onSpellCheckLanguageUpdated:
+          this.socket.on(
+            "spellCheckLanguageUpdated",
+            (language: string) => {
+              handler(language);
+            },
+          );
+          break;
+        case handlers.onCompilerUpdated:
+          this.socket.on("compilerUpdated", (compiler: string) => {
+            handler(compiler);
+          });
+          break;
+        case handlers.onRootDocUpdated:
+          this.socket.on("rootDocUpdated", (rootDocId: string) => {
+            handler(rootDocId);
+          });
+          break;
+        default:
+          break;
+      }
+    });
+  }
+
+  get unSyncFileChanges(): number {
+    if (this.socket instanceof SocketIOAlt) {
+      return this.socket.unSyncedChanges();
+    }
+    return 0;
+  }
+
+  async syncFileChanges() {
+    if (this.socket instanceof SocketIOAlt) {
+      return await this.socket.uploadToVFS();
+    }
+  }
+
+  /**
+   * Reference: services/web/frontend/js/ide/connection/ConnectionManager.js#L427
+   * @param {string} projectId - The project id.
+   * @returns {Promise}
+   */
+  async joinProject(project_id: string): Promise<ProjectEntity> {
+    const timeoutPromise: Promise<ProjectEntity> = new Promise((_, reject) => {
+      setTimeout(() => {
+        reject("timeout");
+      }, 5000);
+    });
   }
 }
