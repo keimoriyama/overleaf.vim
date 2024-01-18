@@ -215,7 +215,6 @@ export class BaseAPI {
     const res = await fetch(this.url + "login", {
       method: "GET",
       redirect: "manual",
-      agent: this.agent,
     });
     const body = await res.text();
     const match = body.match(/<input.*name="_csrf".*value="([^"]*)">/);
@@ -228,8 +227,8 @@ export class BaseAPI {
     }
   }
 
-  private async fetchUserId(cookies: string) {
-    const res: Response = await fetch(this.url + "project", {
+  private async getUserId(cookies: string) {
+    const res = await fetch(this.url + "project", {
       method: "GET",
       redirect: "manual",
       headers: {
@@ -238,7 +237,7 @@ export class BaseAPI {
       },
     });
     const body = await res.text();
-    const userIDMatch = body.match(
+    const userIdMatch = body.match(
       /<meta\s+name="ol-user_id"\s+content="([^"]*)">/,
     );
     const userEmailMatch = body.match(
@@ -247,8 +246,8 @@ export class BaseAPI {
     const csrfTokenMatch = body.match(
       /<meta\s+name="ol-csrfToken"\s+content="([^"]*)">/,
     );
-    if (userIDMatch !== null && csrfTokenMatch !== null) {
-      const userId = userIDMatch[1];
+    if (userIdMatch !== null && csrfTokenMatch !== null) {
+      const userId = userIdMatch[1];
       const csrfToken = csrfTokenMatch[1];
       const userEmail = userEmailMatch ? userEmailMatch[1] : "";
       return { userId, userEmail, csrfToken };
@@ -256,8 +255,72 @@ export class BaseAPI {
       return undefined;
     }
   }
+  // Reference: "github:overleaf/overleaf/services/web/frontend/js/ide/connection/ConnectionManager.js#L137"
+  _initSocketV0(identity: Identity, query?: string) {
+    const url = new URL(this.url).origin + (query ?? "");
+    return (require("socket.io-client").connect as any)(url, {
+      reconnetc: false,
+      "force new connection": true,
+      extraHeaders: {
+        "Cookie": identity.cookies,
+      },
+    });
+  }
 
-  async cookiesLogin(cookies: string) {
+  async passportLogin(
+    email: string,
+    password: string,
+  ): Promise<ResponseSchema> {
+    const identity = await this.getCsrfToken();
+    const res = await fetch(this.url + "login", {
+      method: "POST",
+      redirect: "manual",
+      headers: {
+        "Accept": "*/*",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Connection": "keep-alive",
+        "Content-Type": "application/json",
+        "Cookie": identity.cookies,
+        "X-Csrf-Token": identity.csrfToken,
+      },
+      body: JSON.stringify({
+        _csrf: identity.csrfToken,
+        email: email,
+        password: password,
+      }),
+    });
+
+    if (res.status === 302) {
+      const redirect =
+        ((await res.text()).match(/Found. Redirecting to (*.)/) as any)[1];
+      if (redirect === "/project") {
+        const cookies = res.headers.raw()["set-cookie"][0];
+        return (await this.cookiesLogin(cookies));
+      } else {
+        return {
+          type: "error",
+          message: `Redireceting to /${redirect}`,
+        };
+      }
+    } else if (res.status === 200) {
+      return {
+        type: "error",
+        message: (await res.json() as any).message.message,
+      };
+    } else if (res.status === 401) {
+      return {
+        type: "error",
+        message: (await res.json() as any).message.text,
+      };
+    } else {
+      return {
+        type: "error",
+        message: `${res.status}: ` + await res.text(),
+      };
+    }
+  }
+
+  async cookiesLogin(cookies: string): Promise<ResponseSchema> {
     const res = await this.fetchUserId(cookies);
     if (res) {
       const { userId, userEmail, csrfToken } = res;
@@ -293,6 +356,109 @@ export class BaseAPI {
       }
     }
     return identity;
+  }
+
+  protected async request(
+    type: "GET" | "POST" | "PUT" | "DELETE",
+    route: string,
+    body?: FormData | object,
+    callback?: (res?: string) => object | undefined,
+    extraHeaders?: object,
+  ): Promise<ResponseSchema> {
+    if (this.identity === undefined) return Promise.reject();
+    let res = undefined;
+
+    switch (type) {
+      case "GET":
+        res = await fetch(this.url + route, {
+          method: "GET",
+          redirect: "manual",
+          headers: {
+            "Connection": "keep-alive",
+            "Cookie": this.identity.cookies,
+            ...extraHeaders,
+          },
+        });
+        break;
+      case "POST":
+        const content_type = body instanceof FormData
+          ? undefined
+          : { "Content-Type": "application/json" };
+        const raw_body = body instanceof FormData ? body : JSON.stringify({
+          _csrf: this.identity.csrfToken,
+          ...body,
+        });
+        res = await fetch(this.url + route, {
+          method: "POST",
+          redirect: "manual",
+          headers: {
+            "Connection": "keep-alive",
+            "Cookie": this.identity.cookies,
+            ...content_type,
+            ...extraHeaders,
+          },
+          body: raw_body,
+        });
+        break;
+      case "PUT":
+        break;
+      case "DELETE":
+        res = await fetch(this.url + route, {
+          method: "DELETE",
+          redirect: "manual",
+          headers: {
+            "Connection": "keep-alive",
+            "Cookie": this.identity.cookies,
+            "X-Csrf-Token": this.identity.csrfToken,
+            ...extraHeaders,
+          },
+        });
+        break;
+    }
+
+    if (res && (res.status === 200 || res.status === 204)) {
+      const _res = res.status === 200 ? await res.text() : undefined;
+      const response = callback & callback(_res);
+      return {
+        type: "success",
+        ...response,
+      } as ResponseSchema;
+    } else {
+      res = res || { status: "undefined", text: () => "" };
+      return {
+        type: "error",
+        message: `${res.status}: ` + await res.text(),
+      };
+    }
+  }
+
+  private async fetchUserId(cookies: string) {
+    const res: Response = await fetch(this.url + "project", {
+      method: "GET",
+      redirect: "manual",
+      headers: {
+        "Connection": "keep-alive",
+        "Cookie": cookies,
+      },
+    });
+    const body = await res.text();
+    const userIDMatch = body.match(
+      /<meta\s+name="ol-user_id"\s+content="([^"]*)">/,
+    );
+    const userEmailMatch = body.match(
+      /<meta\s+name="ol-usersEmail"\s+content="([^"]*)">/,
+    );
+    const csrfTokenMatch = body.match(
+      /<meta\s+name="ol-csrfToken"\s+content="([^"]*)">/,
+    );
+    if (userIDMatch !== null && csrfTokenMatch !== null) {
+      const userId = userIDMatch[1];
+      const csrfToken = csrfTokenMatch[1];
+      const userEmail = userEmailMatch ? userEmailMatch[1] : "";
+      return { userId, userEmail, csrfToken };
+    } else {
+      return undefined;
+    }
   }
 }
 
