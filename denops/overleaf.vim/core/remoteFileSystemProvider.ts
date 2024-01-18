@@ -1,3 +1,10 @@
+import {
+  ExtendedBaseAPI,
+  ProjectLinkedFileProvider,
+  UrlLinkedFileProvider,
+} from "../api/extendedBase.ts";
+
+import { MemberEntity, ProjectSettingsSchema } from "../api/base.ts";
 export type FileType = "doc" | "file" | "folder" | "outputs";
 export type FolderKey = "docs" | "fileRefs" | "folders" | "outputs";
 
@@ -59,6 +66,7 @@ export class VirtualFileSystem {
   private root?: ProjectEntity;
   private initializing?: Promise<ProjectEntity>;
   private retryConnection = 0;
+  private socket: SocketIOAPI;
 
   async init(): Promise<ProjectEntity> {
     if (this.root) {
@@ -74,6 +82,9 @@ export class VirtualFileSystem {
       this.retryConnection = 0;
       // TODO: Show Error message about Connection lost
     }
+    if (this.retryConnection > 0) {
+      this.socket.init();
+    }
     return Promise.resolve(this.root);
   }
 }
@@ -81,4 +92,3 @@ export class VirtualFileSystem {
 export class RemoteFileSystemProvider {
   private vfss: { [key: string]: VirtualFileSystem };
 }
-

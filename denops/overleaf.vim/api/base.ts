@@ -6,6 +6,21 @@ export interface Identity {
   cookies: string;
 }
 
+export interface MemberEntity {
+  _id: string;
+  first_name: string;
+  last_name?: string;
+  email: string;
+  privileges?: string;
+  signUpDate?: string;
+}
+
+export interface ProjectSettingsSchema {
+  learnedWords: string[];
+  languages: { code: string; name: string }[];
+  compilers: { code: string; name: string }[];
+}
+
 export class BaseAPI {
   private url: string;
   private agent: httpAgent | httpsAgent;
