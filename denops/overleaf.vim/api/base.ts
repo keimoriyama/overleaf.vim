@@ -1,6 +1,13 @@
 import { Agent as httpsAgent } from "https://deno.land/std@0.145.0/node/https.ts";
 import { Agent as httpAgent } from "https://deno.land/std@0.145.0/node/http.ts";
 
+import {
+  FileEntity,
+  FileType,
+  FolderEntity,
+  OutputFileEntity,
+} from "../core/remoteFileSystemProvider.ts";
+
 export interface Identity {
   csrfToken: string;
   cookies: string;
@@ -196,12 +203,31 @@ export class BaseAPI {
   private url: string;
   private agent: httpAgent | httpsAgent;
   private identity?: Identity;
+
   constructor(url: string) {
     this.url = url;
     this.agent = new URL(url).protocol === "http:"
       ? new httpAgent({ keepAlive: true })
       : new httpsAgent({ keepAlive: true });
   }
+
+  private async getCsrfToken(): Promise<Identity> {
+    const res = await fetch(this.url + "login", {
+      method: "GET",
+      redirect: "manual",
+      agent: this.agent,
+    });
+    const body = await res.text();
+    const match = body.match(/<input.*name="_csrf".*value="([^"]*)">/);
+    if (!match) {
+      throw new Error("Failed to get CSRF token.");
+    } else {
+      const csrfToken = match[1];
+      const cookies = res.headers.raw()["set-cookie"][0].split(";")[0];
+      return { csrfToken, cookies };
+    }
+  }
+
   private async fetchUserId(cookies: string) {
     const res: Response = await fetch(this.url + "project", {
       method: "GET",
@@ -230,6 +256,7 @@ export class BaseAPI {
       return undefined;
     }
   }
+
   async cookiesLogin(cookies: string) {
     const res = await this.fetchUserId(cookies);
     if (res) {
@@ -247,6 +274,7 @@ export class BaseAPI {
       };
     }
   }
+
   async updateCookies(identity: Identity) {
     const res = await fetch(this.url + "socket.io/socket.io.js", {
       method: "GET",
