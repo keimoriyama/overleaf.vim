@@ -358,6 +358,10 @@ export class BaseAPI {
     return identity;
   }
 
+  setIdentity(identity: Identity) {
+    this.identity = identity;
+    return this;
+  }
   protected async request(
     type: "GET" | "POST" | "PUT" | "DELETE",
     route: string,
@@ -430,6 +434,315 @@ export class BaseAPI {
         message: `${res.status}: ` + await res.text(),
       };
     }
+  }
+
+  protected async download(route: string) {
+    if (this.identity === undefined) {
+      return Promise.reject();
+    }
+    let content: Buffer[] = [];
+    while (true) {
+      const res = await fetch(this.url + route, {
+        method: "GET",
+        redirect: "menual",
+        agent: this.agent,
+        header: {
+          "Connection": "keep-alive",
+          "Cookie": this.identity.cookies,
+        },
+      });
+      if (res.status === 200) {
+        content.push(await res.buffer());
+      } else if (res.status === 206) {
+        content.push(await res.buffer());
+      } else {
+        break;
+      }
+    }
+    return Buffer.concat(content);
+  }
+
+  async logout(identity: Identity): Promise<ResponseSchema> {
+    this.setIdentity(identity);
+    return this.request("POST", "logout");
+  }
+
+  async userProjectsJson(identity: Identity): Promise<ResponseSchema> {
+    this.setIdentity(identity);
+    return this.request("GET", "user/projects", undefined, (res) => {
+      const projects = (JSON.parse(res!) as any).projects as any[];
+      projects.forEach((project) => {
+        project.id = project._id;
+        delete project._id;
+      });
+      return { projects };
+    });
+  }
+
+  async getProjectsJson(identity: Identity): Promise<ResponseSchema> {
+    this.setIdentity(identity);
+    return this.request("POST", "api/project", {}, (res) => {
+      const projects = (JSON.parse(res!) as any).projects;
+      return { projects };
+    });
+  }
+
+  async projectEntitiesJson(
+    identity: Identity,
+    projectId: string,
+  ): Promise<ResponseSchema> {
+    this.setIdentity(identity);
+    return this.request("GET", `project/${projectId}/entites`, {}, (res) => {
+      const entities = JSON.parse(res!).entities;
+      return { entities };
+    });
+  }
+
+  async newProject(
+    identity: Identity,
+    projectName: string,
+    template: "none" | "example",
+  ) {
+    this.setIdentity(identity);
+    return this.request(
+      "POST",
+      "project/new",
+      { projectName, template },
+      (res) => {
+        const message =
+          (JSON.parse(res!) as NewProjectResponseSchema).project_id;
+        return { message };
+      },
+    );
+  }
+
+  async renameProject(
+    identity: Identity,
+    projectId: string,
+    newProjectName: string,
+  ) {
+    this.setIdentity(identity);
+    return this.request("POST", `project/${projectId}/rename`, {
+      newProjectName,
+    });
+  }
+
+  async deleteProejct(identity: Identity, projectId: string) {
+    this.setIdentity(identity);
+    return this.request("DELETE", `project/${projectId}`);
+  }
+
+  async archiveProject(identity: Identity, projectId: string) {
+    this.setIdentity(identity);
+    return this.request(
+      "POST",
+      `project/${projectId}/archive`,
+      undefined,
+      undefined,
+      { "X-Csrf-Token": identity.csrfToken },
+    );
+  }
+
+  async unarchiveProject(identity: Identity, projectId: string) {
+    this.setIdentity(identity);
+    return this.request("DELETE", `project/${projectId}/archive`);
+  }
+
+  async trashProject(identity: Identity, projectId: string) {
+    this.setIdentity(identity);
+    return this.request(
+      "POST",
+      `project/${projectId}/trash`,
+      undefined,
+      undefined,
+      { "X-Csrf-Token": identity.csrfToken },
+    );
+  }
+
+  async untrashProject(identity: Identity, projectId: string) {
+    this.setIdentity(identity);
+    return this.request("DELETE", `project/${projectId}/trash`);
+  }
+
+  async getFile(identity: Identity, projectId: string, fileId: string) {
+    this.setIdentity(identity);
+    const content = await this.download(`project/${projectId}/file/${fileId}`);
+    return {
+      type: "success",
+      content: new Uint8Array(content),
+    };
+  }
+
+  async addDoc(
+    identity: Identity,
+    projectId: string,
+    parentFolderId: string,
+    filename: string,
+  ) {
+    this.setIdentity(identity);
+    return this.request("POST", `project/${projectId}/doc`, {
+      parent_folder_id: parentFolderId,
+      name: filename,
+    }, (res) => {
+      const { _id } = JSON.parse(res!) as any;
+      const entity = { _type: "doc", _id, name: filename } as FileEntity;
+      return { entity };
+    }, { "X-Csrf-Token": identity.csrfToken });
+  }
+
+  async uploadFile(
+    identity: Identity,
+    projectId: string,
+    parentFolderId: string,
+    filename: string,
+    fileContent: Unit8Array,
+  ) {
+    const fileStream = stream.Readable.from(fileContent);
+    const formData = new FormData();
+    const mimeType = require("mime-types").lookup(filename);
+    formData.append(
+      "targetFolderId",
+      parentFolderId,
+    );
+    formData.append("name", filename);
+    formData.append("type", mimeType ? mimeType : "text/plain");
+    formData.append("qqfile", fileStream, { filename });
+
+    this.setIdentity(identity);
+    return this.request(
+      "POST",
+      `project/${projectId}/upload?folder_id=${parentFolderId}`,
+      formData,
+      (res) => {
+        const { success, entity_id, entity_type } = JSON.parse(res!) as any;
+        const entity = {
+          _type: entity_type,
+          _id: entity_id,
+          name: filename,
+        } as FileEntity;
+        return { entity };
+      },
+      {
+        "X-Csrf-Token": identity.csrfToken,
+      },
+    );
+  }
+
+  async uploadProject(
+    identity: Identity,
+    filename: string,
+    fileContent: Uint8Array,
+  ) {
+    const uuid = uuidv4();
+    const fileStream = stream.Readable.from(fileContent);
+    const formData = new FormData();
+    formData.append("qqfile", fileStream, { filename });
+    this.setIdentity(identity);
+    return this.request(
+      "POST",
+      `proejct/new/upload?_csrf=${identity.csrfToken}&qqid=${uuid}&qqfilename=${filename}&&qqtotalfilesize=${fileContent.length}`,
+      formData,
+      (res) => {
+        const message = JSON.parse(res!) as FolderEntity;
+        return { message };
+      },
+      { "X-Csrt-Token": identity.csrfToken },
+    );
+  }
+
+  async addFoler(
+    identity: Identity,
+    projectId: string,
+    folderName: string,
+    parentFolderId: string,
+  ) {
+    const body = { name: folderName, parent_folder_id: parentFolderId };
+    this.setIdentity(identity);
+    return this.request("POST", `project/${projectId}/folder`, body, (res) => {
+      const entity = JSON.parse(res!) as FolderEntity;
+      return { entity };
+    }, { "X-Csrf-Token": identity.csrfToken });
+  }
+
+  async deltetEntity(
+    identity: Identity,
+    projectId: string,
+    fileType: FileType,
+    fileId: string,
+  ) {
+    this.setIdentity(identity);
+    return this.request("DELETE", `project/${projectId}/${fileType}/${fileId}`);
+  }
+
+  async deleteAuxFiles(identity: Identity, projectId: string) {
+    this.setIdentity(identity);
+    return this.request("DELETE", `project/${projectId}/output`);
+  }
+
+  async renameEntity(
+    identity: Identity,
+    projectId: string,
+    entityType: string,
+    entityId: string,
+    name: string,
+  ) {
+    this.setIdentity(identity);
+    return this.request(
+      "POST",
+      `project/${projectId}/${entityType}/${entityId}/rename`,
+      { name },
+      undefined,
+      { "X-Csrf-Token": identity.csrfToken },
+    );
+  }
+
+  async moveEntity(
+    identity: Identity,
+    projectId: string,
+    entityType: string,
+    entityId: string,
+    newParentFolderId: string,
+  ) {
+    this.setIdentity(identity);
+    return this.request(
+      "POST",
+      `project/${projectId}/${entityType}/${entityId}/move`,
+      { folder_id: newParentFolderId },
+      undefined,
+      { "X-Csrf-Token": identity.csrfToken },
+    );
+  }
+
+  async compile(
+    identity: Identity,
+    projectId: string,
+    rootDoc_id: string | null,
+  ) {
+    const body = {
+      check: "silent",
+      draft: false,
+      incrementalCompilesEnabled: true,
+      rootDoc_id,
+      stopOnFirstError: false,
+    };
+    this.setIdentity(identity);
+    return this.request(
+      "POST",
+      `proejct/${projectId}/compile?auto_compile=true`,
+      body,
+      (res) => {
+        const compile = JSON.parse(res!) as CompileResponseSchema;
+        return { compile };
+      },
+      { "X-Csrf-Token": identity.csrfToken },
+    );
+  }
+
+  async indexAll(identity: Identity, projectId: string) {
+    this.setIdentity(identity);
+    return this.request("POST", `project/${projectId}/references/indexAll`, {
+      shouldBroadcast: false,
+    }, undefined);
   }
 
   private async fetchUserId(cookies: string) {
