@@ -1,7 +1,6 @@
-import * as vscode from 'vscode';
-import { EventEmitter } from 'events';
-import { PdfDocument } from '../core/pdfViewEditorProvider';
-import { StatusInfo } from '../scm';
+import { EventEmitter } from './events.ts';
+import { PdfDocument } from '../core/pdfViewEditorProvider.ts';
+import { StatusInfo } from '../scm.ts';
 
 
 export type Events = {

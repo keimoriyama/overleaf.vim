@@ -1,4 +1,4 @@
-import { BaseAPI, Identity } from "./base";
+import { BaseAPI, Identity } from "./base.ts";
 
 export interface ProjectLinkedFileProvider {
   provider: "project_file";

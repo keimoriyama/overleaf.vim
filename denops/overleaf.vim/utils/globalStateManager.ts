@@ -1,7 +1,6 @@
-import * as vscode from 'vscode';
-import { Identity, BaseAPI, ProjectPersist } from '../api/base';
-import { SocketIOAPI } from '../api/socketio';
-import { ExtendedBaseAPI } from '../api/extendedBase';
+import { Identity, BaseAPI, ProjectPersist } from '../api/base.ts';
+import { SocketIOAPI } from '../api/socketio.ts';
+import { ExtendedBaseAPI } from '../api/extendedBase.ts';
 
 const keyServerPersists: string = 'overleaf-servers';
 const keyPdfViewPersists: string = 'overleaf-pdf-viewers';
