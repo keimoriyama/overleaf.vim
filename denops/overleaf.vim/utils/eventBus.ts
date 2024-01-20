@@ -1,6 +1,5 @@
-import { EventEmitter } from './events.ts';
 import { PdfDocument } from '../core/pdfViewEditorProvider.ts';
-import { StatusInfo } from '../scm.ts';
+// import { StatusInfo } from '../scm.ts';
 
 
 export type Events = {
