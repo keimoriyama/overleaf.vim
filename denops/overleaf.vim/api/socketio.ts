@@ -7,8 +7,9 @@ import {
   FolderEntity,
   ProjectEntity,
 } from "../core/remoteFileSystemProvider.ts";
-import { EventBus } from "../utils/eventBus.ts";
-import { SocketIOAlt } from "./socketioAlt.ts";
+import {promisify} from "node:util"
+// import { EventBus } from "../utils/eventBus.ts";
+// import { SocketIOAlt } from "./socketioAlt.ts";
 
 export interface UpdateUserSchema {
   id: string;
@@ -101,13 +102,13 @@ export class SocketIOAPI {
     // connect
     switch (this.scheme) {
       case "Alt":
-        this.socket = new SocketIOAlt(
-          this.url,
-          this.api,
-          this.identity,
-          this.projectId,
-          this.record!,
-        );
+        // this.socket = new SocketIOAlt(
+        //   this.url,
+        //   this.api,
+        //   this.identity,
+        //   this.projectId,
+        //   this.record!,
+        // );
         break;
       case "v1":
         this.record = undefined;
@@ -120,7 +121,7 @@ export class SocketIOAPI {
         break;
     }
     // create emit
-    this.socket.emit[require("util").promisify.custom] = (
+    this.socket.emit[promisify.custom] = (
       event: string,
       ...args: any[]
     ) => {
@@ -139,7 +140,8 @@ export class SocketIOAPI {
         });
       });
     };
-    this.emit = require("util").promisify(this.socket.emit).bind(this.socket);
+	// denoではrequireが使えないので、変更する必要がある
+    this.emit = promisify(this.socket.emit).bind(this.socket);
     this.initInternalHanders();
   }
 
@@ -161,7 +163,7 @@ export class SocketIOAPI {
         this.socket.on("joinProjectResponse", (res: any) => {
           const publicId = res.publicId as string;
           const project = res.project as ProjectEntity;
-          EventBus.fire("socketioConnectedEvent", { publicId });
+          // EventBus.fire("socketioConnectedEvent", { publicId });
           resolve(project);
         });
       });
@@ -254,9 +256,9 @@ export class SocketIOAPI {
           this.socket.on("connectionAccepted", (_: any, publicId: any) => {
             handler(publicId);
           });
-          EventBus.on("socketioConnectedEvent", (arg: { publicId: string }) => {
-            handler(arg.publicId);
-          });
+          // EventBus.on("socketioConnectedEvent", (arg: { publicId: string }) => {
+          //   handler(arg.publicId);
+          // });
           break;
         case handlers.onClientUpdated:
           this.socket.on("clientTracking.clientUpdated", (user: string) => {
@@ -300,18 +302,18 @@ export class SocketIOAPI {
     });
   }
 
-  get unSyncFileChanges(): number {
-    if (this.socket instanceof SocketIOAlt) {
-      return this.socket.unSyncedChanges();
-    }
-    return 0;
-  }
+  // get unSyncFileChanges(): number {
+  //   if (this.socket instanceof SocketIOAlt) {
+  //     return this.socket.unSyncedChanges();
+  //   }
+  //   return 0;
+  // }
 
-  async syncFileChanges() {
-    if (this.socket instanceof SocketIOAlt) {
-      return await this.socket.uploadToVFS();
-    }
-  }
+  // async syncFileChanges() {
+  //   if (this.socket instanceof SocketIOAlt) {
+  //     return await this.socket.uploadToVFS();
+  //   }
+  // }
 
   /**
    * Reference: services/web/frontend/js/ide/connection/ConnectionManager.js#L427
@@ -350,63 +352,63 @@ export class SocketIOAPI {
    * @param {string} docId - The document id.
    * @returns {Promise}
    */
-  joinDoc(docId: string) {
-    return this.emit("joinDoc", docId, { encodeRanges: true }).then(
-      (returns: [Array<string>, number, Array<any>, any]) => {
-        const [docLinesAscii, version, updates, ranges] = returns;
-        const docLines = docLinesAscii.map((line) =>
-          Buffer.from(line, "ascii").toSting("utf-8")
-        );
-        return { docLines, version, updates, ranges };
-      },
-    );
-  }
+  // joinDoc(docId: string) {
+  //   return this.emit("joinDoc", docId, { encodeRanges: true }).then(
+  //     (returns: [Array<string>, number, Array<any>, any]) => {
+  //       const [docLinesAscii, version, updates, ranges] = returns;
+  //       const docLines = docLinesAscii.map((line) =>
+  //         Buffer.from(line, "ascii").toSting("utf-8")
+  //       );
+  //       return { docLines, version, updates, ranges };
+  //     },
+  //   );
+  // }
 
   /**
    * Reference: services/web/frontend/js/ide/editor/Document.js#L591
    * @param {string} docId - The document id.
    * @returns {Promise}
    */
-  leaveDoc(docId: string) {
-    return this.emit("leaveDoc", docId).then(() => {
-      return;
-    });
-  }
+  // leaveDoc(docId: string) {
+  //   return this.emit("leaveDoc", docId).then(() => {
+  //     return;
+  //   });
+  // }
   /**
    * Reference: services/web/frontend/js/ide/editor/ShareJsDocs.js#L78
    * @param {string} docId - The document id.
    * @param {any} update - The changes.
    * @returns {Promise}
    */
-  applyOtUpdate(docId: string, update: UpdateSchema) {
-    return this.emit("applyOtUpdate", docId, update).then(
-      () => {
-        return;
-      },
-    );
-  }
+  // applyOtUpdate(docId: string, update: UpdateSchema) {
+  //   return this.emit("applyOtUpdate", docId, update).then(
+  //     () => {
+  //       return;
+  //     },
+  //   );
+  // }
   /**
    * Reference: services/web/frontend/js/ide/online-users/OnlineUserManager.js#L42
    * @returns {Promise}
    */
-  getConnectedUsers(docId: string, update: UpdateSchema) {
-    return this.emit("clientTracking.getConnectedUsers").then(
-      (returns: [OnlineUserSchema[]]) => {
-        const [connectedUsers] = returns;
-        return connectedUsers;
-      },
-    );
-  }
+  // getConnectedUsers(docId: string, update: UpdateSchema) {
+  //   return this.emit("clientTracking.getConnectedUsers").then(
+  //     (returns: [OnlineUserSchema[]]) => {
+  //       const [connectedUsers] = returns;
+  //       return connectedUsers;
+  //     },
+  //   );
+  // }
 
   /**
    * Reference: services/web/frontend/js/ide/online-users/OnlineUserManager.js#L150
    * @param {string} docId - The document id.
    * @returns {Promise}
    */
-  updatePosition(doc_id: string, row: number, column: number) {
-    return this.emit("clientTracking.updatePosition", { row, column, doc_id })
-      .then(() => {
-        return;
-      });
-  }
+  // updatePosition(doc_id: string, row: number, column: number) {
+  //   return this.emit("clientTracking.updatePosition", { row, column, doc_id })
+  //     .then(() => {
+  //       return;
+  //     });
+  // }
 }

@@ -1,11 +1,11 @@
 import { Denops } from "https://deno.land/x/denops_std@v1.0.0/mod.ts";
 import { execute } from "https://deno.land/x/denops_std@v1.0.0/helper/mod.ts";
-// import {RemoteFileSystemProvider, VirtualFileSystem} from "./core/remoteFileSystemProvider.ts"
 export async function main(denops: Denops): Promise<void> {
   // ここにプラグインの処理を記載する
   denops.dispatcher = {
 	  // async createFileSystem(): Promise<unknown>{
-		 //  const remoteFileSystemProvider = new remoteFileSystemProvider(denops)
+		 //  const uri = ""
+		 //  const virtualFileSystem = new VirtualFileSystem(uri)
 	  // }
   };
 }

@@ -2,10 +2,10 @@
 // import * as vscode from 'vscode';
 // import * as DiffMatchPatch from 'diff-match-patch';
 // import { EventEmitter } from 'events';
-import { BaseAPI, Identity, ProjectMessageResponseSchema, ProjectSettingsSchema } from './base';
-import { DocumentEntity, FileEntity, ProjectEntity, VirtualFileSystem } from '../core/remoteFileSystemProvider';
-import { UpdateSchema, UpdateUserSchema } from './socketio';
-import { ROOT_NAME } from '../consts';
+import { BaseAPI, Identity, ProjectMessageResponseSchema, ProjectSettingsSchema } from './base.ts';
+import { DocumentEntity, FileEntity, ProjectEntity, VirtualFileSystem } from '../core/remoteFileSystemProvider.ts';
+import { UpdateSchema, UpdateUserSchema } from './socketio.ts';
+import { ROOT_NAME } from '../consts.ts';
 
 const keyHistoryRefreshInterval = `${ROOT_NAME}.invisibleMode.historyRefreshInterval`;
 const keyChatMessageRefreshInterval = `${ROOT_NAME}.invisibleMode.chatMessageRefreshInterval`;

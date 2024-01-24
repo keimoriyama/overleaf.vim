@@ -222,7 +222,7 @@ export class BaseAPI {
       throw new Error("Failed to get CSRF token.");
     } else {
       const csrfToken = match[1];
-      const cookies = res.headers.raw()["set-cookie"][0].split(";")[0];
+      const cookies = res.headers.getSetCookie()[0];
       return { csrfToken, cookies };
     }
   }
@@ -292,9 +292,9 @@ export class BaseAPI {
 
     if (res.status === 302) {
       const redirect =
-        ((await res.text()).match(/Found. Redirecting to (*.)/) as any)[1];
+        ((await res.text()).match(/Found. Redirecting to (.*)/) as any)[1];
       if (redirect === "/project") {
-        const cookies = res.headers.raw()["set-cookie"][0];
+        const cookies = res.headers["set-cookie"][0];
         return (await this.cookiesLogin(cookies));
       } else {
         return {

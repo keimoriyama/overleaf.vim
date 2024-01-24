@@ -1,6 +1,7 @@
 import { Identity, BaseAPI, ProjectPersist } from '../api/base.ts';
 import { SocketIOAPI } from '../api/socketio.ts';
 import { ExtendedBaseAPI } from '../api/extendedBase.ts';
+import {Context} from "../context.ts"
 
 const keyServerPersists: string = 'overleaf-servers';
 const keyPdfViewPersists: string = 'overleaf-pdf-viewers';
@@ -15,7 +16,9 @@ export interface ServerPersist {
     projects?: ProjectPersist[]
   };
 }
-type ServerPersistMap = { [name: string]: ServerPersist };
+
+
+export type ServerPersistMap = { [name: string]: ServerPersist };
 
 export interface ProjectSCMPersist {
   enabled: boolean;
@@ -31,11 +34,12 @@ type PdfViewPersist = {
 };
 type PdfViewPersistMap = { [uri: string]: PdfViewPersist };
 
-export class GlobalStateManager {
+type Servers = { server: ServerPersist, api: BaseAPI }
 
-  static getServers(context: vscode.ExtensionContext): { server: ServerPersist, api: BaseAPI }[] {
-    const persists = context.globalState.get<ServerPersistMap>(keyServerPersists, {});
-    const servers = Object.values(persists).map(persist => {
+export class GlobalStateManager {
+  static getServers(context:Context): Servers[] {
+    const persists = context.globalState;
+    const servers:Servers[] = Object.values(persists).map((persist:any) => {
       return {
         server: persist,
         api: new BaseAPI(persist.url),
@@ -51,32 +55,33 @@ export class GlobalStateManager {
     }
   }
 
-  static addServer(context: vscode.ExtensionContext, name: string, url: string): boolean {
-    const persists = context.globalState.get<ServerPersistMap>(keyServerPersists, {});
+  static addServer(context: Context, name: string, url: string): boolean {
+    const persists = context.globalState;
     if (persists[name] === undefined) {
       persists[name] = { name, url };
-      context.globalState.update(keyServerPersists, persists);
+      // context.globalState.update(keyServerPersists, persists);
+	  context.globalState = persists
       return true;
     } else {
       return false;
     }
   }
 
-  static removeServer(context: vscode.ExtensionContext, name: string): boolean {
-    const persists = context.globalState.get<ServerPersistMap>(keyServerPersists, {});
+  static removeServer(context: Context, name: string): boolean {
+    const persists = context.globalState;
     if (persists[name] !== undefined) {
       delete persists[name];
-      context.globalState.update(keyServerPersists, persists);
+      // context.globalState.update(keyServerPersists, persists);
+	  context.globalState = persists
       return true;
     } else {
       return false;
     }
   }
 
-  static async loginServer(context: vscode.ExtensionContext, api: BaseAPI, name: string, auth: { [key: string]: string }): Promise<boolean> {
-    const persists = context.globalState.get<ServerPersistMap>(keyServerPersists, {});
-    const server = persists[name];
-
+  async loginServer(context: Context, api: BaseAPI, auth: { [key: string]: string }): Promise<boolean> {
+    const persists = context.globalState;
+	const server   = persists[name];
     if (server.login === undefined) {
       const res = auth.cookies ? await api.cookiesLogin(auth.cookies) : await api.passportLogin(auth.email, auth.password);
       if (res.type === 'success' && res.identity !== undefined && res.userInfo !== undefined) {
@@ -85,11 +90,12 @@ export class GlobalStateManager {
           username: auth.email || res.userInfo.userEmail,
           identity: res.identity
         };
-        context.globalState.update(keyServerPersists, persists);
+        // context.globalState.update(keyServerPersists, persists);
+		context.globalState[keyServerPersists] = server
         return true;
       } else {
         if (res.message !== undefined) {
-          vscode.window.showErrorMessage(res.message);
+          // vscoe.window.showErrorMessage(res.message);
         }
         return false;
       }
@@ -98,22 +104,23 @@ export class GlobalStateManager {
     }
   }
 
-  static async logoutServer(context: vscode.ExtensionContext, api: BaseAPI, name: string): Promise<boolean> {
-    const persists = context.globalState.get<ServerPersistMap>(keyServerPersists, {});
+  static async logoutServer(context: Context, api: BaseAPI, name: string): Promise<boolean> {
+    const persists = context.globalState;
     const server = persists[name];
 
     if (server.login !== undefined) {
       await api.logout(server.login.identity);
       delete server.login;
-      context.globalState.update(keyServerPersists, persists);
+      // context.globalState.update(keyServerPersists, persists);
+	  context.globalState[keyServerPersists] = server
       return true;
     } else {
       return false;
     }
   }
 
-  static async fetchServerProjects(context: vscode.ExtensionContext, api: BaseAPI, name: string): Promise<ProjectPersist[]> {
-    const persists = context.globalState.get<ServerPersistMap>(keyServerPersists, {});
+  static async fetchServerProjects(context:Context, api: BaseAPI, name: string): Promise<ProjectPersist[]> {
+    const persists = context.globalState;
     const server = persists[name];
 
     if (server.login !== undefined) {
@@ -127,7 +134,7 @@ export class GlobalStateManager {
           project.userId = (server.login as any).userId;
         });
         const projects = res.projects.map(project => {
-          const existProject = server.login?.projects?.find(p => p.id === project.id);
+          const existProject = server.login?.projects?.find((p:any) => p.id === project.id);
           // merge existing scm
           if (existProject) {
             project.scm = existProject.scm;
@@ -135,11 +142,12 @@ export class GlobalStateManager {
           return project;
         });
         server.login.projects = projects;
-        context.globalState.update(keyServerPersists, persists);
+        // context.globalState.update(keyServerPersists, persists);
+		context.globalState[keyServerPersists] = server
         return projects;
       } else {
         if (res.message !== undefined) {
-          vscode.window.showErrorMessage(res.message);
+          // vscode.window.showErrorMessage(res.message);
         }
         return [];
       }
@@ -148,16 +156,16 @@ export class GlobalStateManager {
     }
   }
 
-  static authenticate(context: vscode.ExtensionContext, name: string) {
-    const persists = context.globalState.get<ServerPersistMap>(keyServerPersists, {});
+  static authenticate(context: Context, name: string) {
+    const persists = context.globalState;
     const server = persists[name];
     return server.login !== undefined ?
       Promise.resolve(server.login.identity) :
       Promise.reject();
   }
 
-  static initSocketIOAPI(context: vscode.ExtensionContext, name: string, projectId: string) {
-    const persists = context.globalState.get<ServerPersistMap>(keyServerPersists, {});
+  static initSocketIOAPI(context: Context, name: string, projectId: string) {
+    const persists = context.globalState;
     const server = persists[name];
 
     if (server.login !== undefined) {
@@ -167,18 +175,19 @@ export class GlobalStateManager {
     }
   }
 
-  static getServerProjectSCMPersists(context: vscode.ExtensionContext, serverName: string, projectId: string) {
-    const persists = context.globalState.get<ServerPersistMap>(keyServerPersists, {});
+  static getServerProjectSCMPersists(context: Context, serverName: string, projectId: string) {
+    const persists = context.globalState;
     const server = persists[serverName];
-    const project = server.login?.projects?.find(project => project.id === projectId);
+    const project = server.login?.projects?.find(( project:any) => project.id === projectId);
     const scmPersists = project?.scm ? project.scm as ProjectSCMPersistMap : {};
     return scmPersists;
   }
 
-  static updateServerProjectSCMPersist(context: vscode.ExtensionContext, serverName: string, projectId: string, scmKey: string, scmPersist?: ProjectSCMPersist) {
-    const persists = context.globalState.get<ServerPersistMap>(keyServerPersists, {});
-    const server = persists[serverName];
-    const project = server.login?.projects?.find(project => project.id === projectId);
+  static updateServerProjectSCMPersist(context: Context, serverName: string, projectId: string, scmKey: string, scmPersist?: ProjectSCMPersist) {
+    // const persists = context.globalState.get<ServerPersistMap>(keyServerPersists, {});
+	const persists = context.globalState[keyServerPersists]
+    const server = persists;
+    const project = server.login?.projects?.find((project:any)=> project.id === projectId);
     if (project) {
       const scmPersists = (project.scm ?? {}) as ProjectSCMPersistMap;
       if (scmPersist === undefined) {
@@ -187,39 +196,17 @@ export class GlobalStateManager {
         scmPersists[scmKey] = scmPersist;
       }
       project.scm = scmPersists;
-      context.globalState.update(keyServerPersists, persists);
+	  context.globalState[keyServerPersists] = persists
     }
   }
-
-  static getPdfViewPersist(context: vscode.ExtensionContext, uri: string): any {
-    return context.globalState.get<PdfViewPersistMap>(keyPdfViewPersists, {})[uri]?.state;
-  }
-
-  static updatePdfViewPersist(context: vscode.ExtensionContext, uri: string, state: any) {
-    const persists = context.globalState.get<PdfViewPersistMap>(keyPdfViewPersists, {});
-
-    // update record
-    if (persists[uri] !== undefined) {
-      persists[uri].frequency++;
-      persists[uri].state = state;
-    } else {
-      persists[uri] = { frequency: 1, state };
-    }
-
-    // when length>=100, remove first least used record
-    if (Object.keys(persists).length >= 100) {
-      let minFrequency = Number.MAX_SAFE_INTEGER;
-      let minUri = '';
-      Object.entries(persists).forEach(([uri, persist]) => {
-        if (persist.frequency < minFrequency) {
-          minFrequency = persist.frequency;
-          minUri = uri;
-        }
-      });
-      delete persists[minUri];
-    }
-
-    context.globalState.update(keyPdfViewPersists, persists);
-  }
-
 }
+
+Deno.test("CookieLogin", async () =>{
+  const api = new BaseAPI("https://www.overleaf.com/");
+  const cookie = Deno.env.get("OVERLEAF_COOKIE") as string;
+  const context = new Context()
+  const auth = {"cookies": cookie}
+  const StateManager = new GlobalStateManager()
+  const res = StateManager.loginServer(context, api, auth)
+  console.log(res)
+})
