@@ -1,6 +1,8 @@
 import { Agent as httpsAgent } from "https://deno.land/std@0.145.0/node/https.ts";
 import { Agent as httpAgent } from "https://deno.land/std@0.145.0/node/http.ts";
-
+import {contentType} from "https://deno.land/std@0.213.0/media_types/mod.ts";
+import { Buffer } from "https://deno.land/std@0.213.0/io/buffer.ts";
+import {stream} from "https://deno.land/std@0.173.0/node/stream.ts";
 import {
   FileEntity,
   FileType,
@@ -411,7 +413,7 @@ export class BaseAPI {
           method: "DELETE",
           redirect: "manual",
           headers: {
-            "Connection": "keep-alive",
+            "Connection": "-alive",
             "Cookie": this.identity.cookies,
             "X-Csrf-Token": this.identity.csrfToken,
             ...extraHeaders,
@@ -452,14 +454,15 @@ export class BaseAPI {
         },
       });
       if (res.status === 200) {
-        content.push(await res.buffer());
+        content.push(await res.arrayBuffer());
       } else if (res.status === 206) {
-        content.push(await res.buffer());
+        content.push(await res.arrayBuffer());
       } else {
         break;
       }
     }
-    return Buffer.concat(content);
+    // return Buffer.concat(content);
+	return new Buffer(content)
   }
 
   async logout(identity: Identity): Promise<ResponseSchema> {
@@ -595,18 +598,18 @@ export class BaseAPI {
     projectId: string,
     parentFolderId: string,
     filename: string,
-    fileContent: Unit8Array,
+    fileContent: Uint8Array,
   ) {
     const fileStream = stream.Readable.from(fileContent);
     const formData = new FormData();
-    const mimeType = require("mime-types").lookup(filename);
+    const mimeType = contentType(filename);
     formData.append(
       "targetFolderId",
       parentFolderId,
     );
     formData.append("name", filename);
     formData.append("type", mimeType ? mimeType : "text/plain");
-    formData.append("qqfile", fileStream, { filename });
+    formData.append("qqfile", fileStream, filename );
 
     this.setIdentity(identity);
     return this.request(
@@ -628,28 +631,27 @@ export class BaseAPI {
     );
   }
 
-  async uploadProject(
-    identity: Identity,
-    filename: string,
-    fileContent: Uint8Array,
-  ) {
-    const uuid = uuidv4();
-    const fileStream = stream.Readable.from(fileContent);
-    const formData = new FormData();
-    formData.append("qqfile", fileStream, { filename });
-    this.setIdentity(identity);
-    return this.request(
-      "POST",
-      `proejct/new/upload?_csrf=${identity.csrfToken}&qqid=${uuid}&qqfilename=${filename}&&qqtotalfilesize=${fileContent.length}`,
-      formData,
-      (res) => {
-        const message = JSON.parse(res!) as FolderEntity;
-        return { message };
-      },
-      { "X-Csrt-Token": identity.csrfToken },
-    );
-  }
-
+  // async uploadProject(
+  //   identity: Identity,
+  //   filename: string,
+  //   fileContent: Uint8Array,
+  // ) {
+  //   const uuid = crypto.randomUUID();
+  //   const fileStream = file.read(fileContent);
+  //   const formData = new FormData();
+  //   formData.append("qqfile", fileStream,  filename );
+  //   this.setIdentity(identity);
+  //   return this.request(
+  //     "POST",
+  //     `proejct/new/upload?_csrf=${identity.csrfToken}&qqid=${uuid}&qqfilename=${filename}&&qqtotalfilesize=${fileContent.length}`,
+  //     formData,
+  //     (res) => {
+  //       const message = JSON.parse(res!) as FolderEntity;
+  //       return { message };
+  //     },
+  //     { "X-Csrt-Token": identity.csrfToken },
+  //   );
+  // }
   async addFoler(
     identity: Identity,
     projectId: string,
