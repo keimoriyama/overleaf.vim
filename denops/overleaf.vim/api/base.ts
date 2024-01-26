@@ -1,8 +1,9 @@
 import { Agent as httpsAgent } from "https://deno.land/std@0.145.0/node/https.ts";
 import { Agent as httpAgent } from "https://deno.land/std@0.145.0/node/http.ts";
 import {contentType} from "https://deno.land/std@0.213.0/media_types/mod.ts";
-import { Buffer } from "https://deno.land/std@0.213.0/io/buffer.ts";
-import {stream} from "https://deno.land/std@0.173.0/node/stream.ts";
+import { Buffer } from "https://deno.land/std@0.139.0/node/buffer.ts";
+import { Socket } from "https://deno.land/x/socket_io@0.2.0/packages/socket.io/mod.ts";
+import * as stream from "node:stream";
 import {
   FileEntity,
   FileType,
@@ -260,13 +261,13 @@ export class BaseAPI {
   // Reference: "github:overleaf/overleaf/services/web/frontend/js/ide/connection/ConnectionManager.js#L137"
   _initSocketV0(identity: Identity, query?: string) {
     const url = new URL(this.url).origin + (query ?? "");
-    return (require("socket.io-client").connect as any)(url, {
-      reconnetc: false,
-      "force new connection": true,
-      extraHeaders: {
-        "Cookie": identity.cookies,
-      },
-    });
+    // return (Socket.client.connect() as any)(url, {
+    //   reconnetc: false,
+    //   "force new connection": true,
+    //   extraHeaders: {
+    //     "Cookie": identity.cookies,
+    //   },
+    // });
   }
 
   async passportLogin(
@@ -296,7 +297,7 @@ export class BaseAPI {
       const redirect =
         ((await res.text()).match(/Found. Redirecting to (.*)/) as any)[1];
       if (redirect === "/project") {
-        const cookies = res.headers["set-cookie"][0];
+        const cookies = res.headers.getSetCookie()[0];
         return (await this.cookiesLogin(cookies));
       } else {
         return {
@@ -328,9 +329,9 @@ export class BaseAPI {
       const { userId, userEmail, csrfToken } = res;
       const identity = await this.updateCookies({ cookies, csrfToken });
       return {
-        type: "succcess",
+        type: "success",
         userInfo: { userId, userEmail },
-        Identity: identity,
+        identity: identity,
       };
     } else {
       return {
@@ -424,10 +425,10 @@ export class BaseAPI {
 
     if (res && (res.status === 200 || res.status === 204)) {
       const _res = res.status === 200 ? await res.text() : undefined;
-      const response = callback & callback(_res);
+      const response = callback && callback(_res);
       return {
         type: "success",
-        ...response,
+        response,
       } as ResponseSchema;
     } else {
       res = res || { status: "undefined", text: () => "" };
@@ -446,23 +447,22 @@ export class BaseAPI {
     while (true) {
       const res = await fetch(this.url + route, {
         method: "GET",
-        redirect: "menual",
-        agent: this.agent,
-        header: {
+        redirect: "manual",
+        // agent: this.agent,
+        headers: {
           "Connection": "keep-alive",
           "Cookie": this.identity.cookies,
         },
       });
       if (res.status === 200) {
-        content.push(await res.arrayBuffer());
+        content.push(Buffer.from(await res.arrayBuffer()));
       } else if (res.status === 206) {
-        content.push(await res.arrayBuffer());
+        content.push(Buffer.from(await res.arrayBuffer()));
       } else {
         break;
       }
     }
-    // return Buffer.concat(content);
-	return new Buffer(content)
+    return Buffer.concat(content);
   }
 
   async logout(identity: Identity): Promise<ResponseSchema> {
@@ -572,7 +572,8 @@ export class BaseAPI {
     const content = await this.download(`project/${projectId}/file/${fileId}`);
     return {
       type: "success",
-      content: new Uint8Array(content),
+      // content: new Uint8Array(content),
+	  content:content
     };
   }
 
@@ -600,7 +601,8 @@ export class BaseAPI {
     filename: string,
     fileContent: Uint8Array,
   ) {
-    const fileStream = stream.Readable.from(fileContent);
+    // const fileStream = stream.Readable.from(fileContent);
+    const fileStream = new TextDecoder().decode(fileContent);
     const formData = new FormData();
     const mimeType = contentType(filename);
     formData.append(
