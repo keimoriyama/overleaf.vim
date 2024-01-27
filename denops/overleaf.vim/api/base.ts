@@ -1,6 +1,6 @@
 import { Agent as httpsAgent } from "https://deno.land/std@0.145.0/node/https.ts";
 import { Agent as httpAgent } from "https://deno.land/std@0.145.0/node/http.ts";
-import {contentType} from "https://deno.land/std@0.213.0/media_types/mod.ts";
+import { contentType } from "https://deno.land/std@0.213.0/media_types/mod.ts";
 import { Buffer } from "https://deno.land/std@0.139.0/node/buffer.ts";
 import { Socket } from "https://deno.land/x/socket_io@0.2.0/packages/socket.io/mod.ts";
 import * as stream from "node:stream";
@@ -35,10 +35,10 @@ export interface CompileResponseSchema {
     "latex-runs-with-error-0s": number;
   };
   timings: {
-    "sync": number;
-    "compile": number;
-    "output": number;
-    "compile2E": number;
+    sync: number;
+    compile: number;
+    output: number;
+    compile2E: number;
   };
   enableHybridPdfDownload: boolean;
 }
@@ -209,9 +209,10 @@ export class BaseAPI {
 
   constructor(url: string) {
     this.url = url;
-    this.agent = new URL(url).protocol === "http:"
-      ? new httpAgent({ keepAlive: true })
-      : new httpsAgent({ keepAlive: true });
+    this.agent =
+      new URL(url).protocol === "http:"
+        ? new httpAgent({ keepAlive: true })
+        : new httpsAgent({ keepAlive: true });
   }
 
   private async getCsrfToken(): Promise<Identity> {
@@ -235,8 +236,8 @@ export class BaseAPI {
       method: "GET",
       redirect: "manual",
       headers: {
-        "Connection": "keep-alive",
-        "Cookie": cookies,
+        Connection: "keep-alive",
+        Cookie: cookies,
       },
     });
     const body = await res.text();
@@ -279,11 +280,11 @@ export class BaseAPI {
       method: "POST",
       redirect: "manual",
       headers: {
-        "Accept": "*/*",
+        Accept: "*/*",
         "Accept-Encoding": "gzip, deflate, br",
-        "Connection": "keep-alive",
+        Connection: "keep-alive",
         "Content-Type": "application/json",
-        "Cookie": identity.cookies,
+        Cookie: identity.cookies,
         "X-Csrf-Token": identity.csrfToken,
       },
       body: JSON.stringify({
@@ -294,11 +295,12 @@ export class BaseAPI {
     });
 
     if (res.status === 302) {
-      const redirect =
-        ((await res.text()).match(/Found. Redirecting to (.*)/) as any)[1];
+      const redirect = (
+        (await res.text()).match(/Found. Redirecting to (.*)/) as any
+      )[1];
       if (redirect === "/project") {
         const cookies = res.headers.getSetCookie()[0];
-        return (await this.cookiesLogin(cookies));
+        return await this.cookiesLogin(cookies);
       } else {
         return {
           type: "error",
@@ -308,17 +310,17 @@ export class BaseAPI {
     } else if (res.status === 200) {
       return {
         type: "error",
-        message: (await res.json() as any).message.message,
+        message: ((await res.json()) as any).message.message,
       };
     } else if (res.status === 401) {
       return {
         type: "error",
-        message: (await res.json() as any).message.text,
+        message: ((await res.json()) as any).message.text,
       };
     } else {
       return {
         type: "error",
-        message: `${res.status}: ` + await res.text(),
+        message: `${res.status}: ` + (await res.text()),
       };
     }
   }
@@ -346,14 +348,13 @@ export class BaseAPI {
       method: "GET",
       redirect: "manual",
       headers: {
-        "Connection": "keep-alive",
-        "Cookie": identity.cookies,
+        Connection: "keep-alive",
+        Cookie: identity.cookies,
       },
     });
     const header = res.headers.getSetCookie();
     if (header !== undefined) {
       const cookies = header[0].split(";")[0];
-      console.log(cookies);
       if (cookies) {
         identity.cookies = `${identity.cookies}; ${cookies}`;
       }
@@ -381,26 +382,30 @@ export class BaseAPI {
           method: "GET",
           redirect: "manual",
           headers: {
-            "Connection": "keep-alive",
-            "Cookie": this.identity.cookies,
+            Connection: "keep-alive",
+            Cookie: this.identity.cookies,
             ...extraHeaders,
           },
         });
         break;
       case "POST":
-        const content_type = body instanceof FormData
-          ? undefined
-          : { "Content-Type": "application/json" };
-        const raw_body = body instanceof FormData ? body : JSON.stringify({
-          _csrf: this.identity.csrfToken,
-          ...body,
-        });
+        const content_type =
+          body instanceof FormData
+            ? undefined
+            : { "Content-Type": "application/json" };
+        const raw_body =
+          body instanceof FormData
+            ? body
+            : JSON.stringify({
+                _csrf: this.identity.csrfToken,
+                ...body,
+              });
         res = await fetch(this.url + route, {
           method: "POST",
           redirect: "manual",
           headers: {
-            "Connection": "keep-alive",
-            "Cookie": this.identity.cookies,
+            Connection: "keep-alive",
+            Cookie: this.identity.cookies,
             ...content_type,
             ...extraHeaders,
           },
@@ -414,8 +419,8 @@ export class BaseAPI {
           method: "DELETE",
           redirect: "manual",
           headers: {
-            "Connection": "-alive",
-            "Cookie": this.identity.cookies,
+            Connection: "-alive",
+            Cookie: this.identity.cookies,
             "X-Csrf-Token": this.identity.csrfToken,
             ...extraHeaders,
           },
@@ -434,7 +439,7 @@ export class BaseAPI {
       res = res || { status: "undefined", text: () => "" };
       return {
         type: "error",
-        message: `${res.status}: ` + await res.text(),
+        message: `${res.status}: ` + (await res.text()),
       };
     }
   }
@@ -450,8 +455,8 @@ export class BaseAPI {
         redirect: "manual",
         // agent: this.agent,
         headers: {
-          "Connection": "keep-alive",
-          "Cookie": this.identity.cookies,
+          Connection: "keep-alive",
+          Cookie: this.identity.cookies,
         },
       });
       if (res.status === 200) {
@@ -512,8 +517,8 @@ export class BaseAPI {
       "project/new",
       { projectName, template },
       (res) => {
-        const message =
-          (JSON.parse(res!) as NewProjectResponseSchema).project_id;
+        const message = (JSON.parse(res!) as NewProjectResponseSchema)
+          .project_id;
         return { message };
       },
     );
@@ -573,7 +578,7 @@ export class BaseAPI {
     return {
       type: "success",
       // content: new Uint8Array(content),
-	  content:content
+      content: content,
     };
   }
 
@@ -584,14 +589,20 @@ export class BaseAPI {
     filename: string,
   ) {
     this.setIdentity(identity);
-    return this.request("POST", `project/${projectId}/doc`, {
-      parent_folder_id: parentFolderId,
-      name: filename,
-    }, (res) => {
-      const { _id } = JSON.parse(res!) as any;
-      const entity = { _type: "doc", _id, name: filename } as FileEntity;
-      return { entity };
-    }, { "X-Csrf-Token": identity.csrfToken });
+    return this.request(
+      "POST",
+      `project/${projectId}/doc`,
+      {
+        parent_folder_id: parentFolderId,
+        name: filename,
+      },
+      (res) => {
+        const { _id } = JSON.parse(res!) as any;
+        const entity = { _type: "doc", _id, name: filename } as FileEntity;
+        return { entity };
+      },
+      { "X-Csrf-Token": identity.csrfToken },
+    );
   }
 
   async uploadFile(
@@ -605,13 +616,10 @@ export class BaseAPI {
     const fileStream = new TextDecoder().decode(fileContent);
     const formData = new FormData();
     const mimeType = contentType(filename);
-    formData.append(
-      "targetFolderId",
-      parentFolderId,
-    );
+    formData.append("targetFolderId", parentFolderId);
     formData.append("name", filename);
     formData.append("type", mimeType ? mimeType : "text/plain");
-    formData.append("qqfile", fileStream, filename );
+    formData.append("qqfile", fileStream, filename);
 
     this.setIdentity(identity);
     return this.request(
@@ -662,10 +670,16 @@ export class BaseAPI {
   ) {
     const body = { name: folderName, parent_folder_id: parentFolderId };
     this.setIdentity(identity);
-    return this.request("POST", `project/${projectId}/folder`, body, (res) => {
-      const entity = JSON.parse(res!) as FolderEntity;
-      return { entity };
-    }, { "X-Csrf-Token": identity.csrfToken });
+    return this.request(
+      "POST",
+      `project/${projectId}/folder`,
+      body,
+      (res) => {
+        const entity = JSON.parse(res!) as FolderEntity;
+        return { entity };
+      },
+      { "X-Csrf-Token": identity.csrfToken },
+    );
   }
 
   async deltetEntity(
@@ -744,9 +758,14 @@ export class BaseAPI {
 
   async indexAll(identity: Identity, projectId: string) {
     this.setIdentity(identity);
-    return this.request("POST", `project/${projectId}/references/indexAll`, {
-      shouldBroadcast: false,
-    }, undefined);
+    return this.request(
+      "POST",
+      `project/${projectId}/references/indexAll`,
+      {
+        shouldBroadcast: false,
+      },
+      undefined,
+    );
   }
 
   private async fetchUserId(cookies: string) {
@@ -754,8 +773,8 @@ export class BaseAPI {
       method: "GET",
       redirect: "manual",
       headers: {
-        "Connection": "keep-alive",
-        "Cookie": cookies,
+        Connection: "keep-alive",
+        Cookie: cookies,
       },
     });
     const body = await res.text();
