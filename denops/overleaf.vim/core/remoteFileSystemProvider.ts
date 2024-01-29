@@ -82,23 +82,24 @@ export interface ProjectEntity {
 // 		this.size = 0
 // 	}
 // }
-// export function parseUri(uri: any) {
-//     const query:any = uri.query.split('&').reduce((acc, v) => {
-//         const [key,value] = v.split('=');
-//         return {...acc, [key]:value};
-//     }, {});
-//     const [userId, projectId] = [query.user, query.project];
-//     const _pathParts = uri.path.split('/');
-//     const serverName = uri.authority;
-//     const projectName = _pathParts[1];
-//     const pathParts = _pathParts.splice(2);
-//     const identifier = `${userId}/${projectId}/${projectName}`;
-//     return {userId, projectId, serverName, projectName, identifier, pathParts};
-// }
-//
+export function parseUri(uri: any) {
+  const query: any = uri.query.split("&").reduce((acc, v) => {
+    const [key, value] = v.split("=");
+    return { ...acc, [key]: value };
+  }, {});
+  const [userId, projectId] = [query.user, query.project];
+  const _pathParts = uri.path.split("/");
+  const serverName = uri.authority;
+  const projectName = _pathParts[1];
+  const pathParts = _pathParts.splice(2);
+  const identifier = `${userId}/${projectId}/${projectName}`;
+  return { userId, projectId, serverName, projectName, identifier, pathParts };
+}
+
 export class VirtualFileSystem {
   private root?: ProjectEntity;
   private currentVersion?: number;
+  private context: Context;
   private api: BaseAPI;
   private socket: SocketIOAPI;
   private publicId?: string;
@@ -182,7 +183,7 @@ export class VirtualFileSystem {
       ) => {
         const res = this._resolveById(parentFolderId);
         if (res) {
-          const { fileEneity, path } = res;
+          const { fileEntity, path } = res;
           const eneityPath = path + entity.name;
           this.insertEntity(fileEntity as FolderEntity, type, entity);
         }
@@ -246,7 +247,53 @@ export class VirtualFileSystem {
           doc.localCache = undefined;
         }
       },
+      onSpellCheckLanguageUpdated: (language: string) => {
+        if (this.root) {
+          this.root.spellCheckLanguage = language;
+        }
+      },
+      onCompilerUpdated: (compiler: string) => {
+        if (this.root) {
+          this.root.compiler = compiler;
+        }
+      },
     });
+  }
+  async _resolveUri(uri: string) {
+    const [parentFolder, fileName] = await (async () => {
+      const { pathParts } = parseUri(uri);
+      const root = await this.init();
+
+      let currentFolder = root.rootFolder[0];
+      for (let i = 0; i < pathParts.length - 1; i++) {
+        const folderName = pathParts[i];
+        const folder = currentFolder.folders.find(
+          (folder) => folder.name === folderName,
+        );
+        if (folder) {
+          currentFolder = folder;
+        } else {
+          console.log("File not Found");
+        }
+      }
+      const fileName = pathParts[pathParts.length - 1];
+      return [currentFolder, fileName];
+    })();
+    const [fileEntity, fileType, fileId] = (() => {
+      for (const _type of Object.keys(FolderKeys)) {
+        let entity = parentFolder[FolderKeys[_type]]?.find(
+          (entity) => entity.name === fileName,
+        );
+        if (!fileName && _type === "folder") {
+          entity = parentFolder;
+        }
+        if (entity) {
+          return [entity, _type as FileType, entity._id];
+        }
+      }
+      return [];
+    })();
+    return { parentFolder, fileName, fileEntity, fileType, fileId };
   }
   private _resolveById(
     entityId: string,
@@ -295,6 +342,45 @@ export class VirtualFileSystem {
         }
       }
       return undefined;
+    }
+  }
+  async openFile(uri): Promise<Uint8Array> {
+    const { fileType, fileEntity } = await this._resolveUri(uri);
+    if (!fileEntity) {
+      console.log("File not Found");
+    }
+    if (fileType === "doc") {
+      const doc = fileEntity as DocumentEntity;
+      if (doc.remoteCache !== undefined) {
+        const content = doc.remoteCache;
+        return new TextEncoder().encode(content);
+      } else {
+        const res = await this.socket.joinDoc(fileEntity._id);
+        const content = res.docLines.join("\n");
+        doc.version = res.version;
+        doc.remoteCache = content;
+        doc.localCache = content;
+        return new TextEncoder().encode(content);
+      }
+    } else if (fileType === "outputs") {
+      return GlobalStateManager.authenticate(
+        this.context,
+        this.serverName,
+      ).then((identity) => {
+        return this.api
+          .getFileFromClsi(
+            identity,
+            (fileEntity as OutputFileEntity).url,
+            "standard",
+          )
+          .then((res) => {
+            if (res.type === "success") {
+              return res.content;
+            } else {
+              return new Uint8Array(0);
+            }
+          });
+      });
     }
   }
   private insertEntity(
