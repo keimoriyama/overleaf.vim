@@ -406,3 +406,7 @@ export class SocketIOAPI {
   //     });
   // }
 }
+
+Deno.test("initSocketIO", () => {
+  console.log("init");
+});
