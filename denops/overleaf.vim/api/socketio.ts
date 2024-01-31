@@ -9,6 +9,8 @@ import {
 } from "../core/remoteFileSystemProvider.ts";
 import { promisify } from "node:util";
 import { Buffer } from "https://deno.land/std@0.139.0/node/buffer.ts";
+import { Server } from "https://deno.land/x/socket_io@0.1.1/mod.ts";
+
 // import { EventBus } from "../utils/eventBus.ts";
 // import { SocketIOAlt } from "./socketioAlt.ts";
 

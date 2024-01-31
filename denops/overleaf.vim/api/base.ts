@@ -2,8 +2,6 @@ import { Agent as httpsAgent } from "https://deno.land/std@0.145.0/node/https.ts
 import { Agent as httpAgent } from "https://deno.land/std@0.145.0/node/http.ts";
 import { contentType } from "https://deno.land/std@0.213.0/media_types/mod.ts";
 import { Buffer } from "https://deno.land/std@0.139.0/node/buffer.ts";
-import { Socket } from "https://deno.land/x/socket_io@0.2.0/packages/socket.io/mod.ts";
-import * as stream from "node:stream";
 import {
   FileEntity,
   FileType,
@@ -261,8 +259,9 @@ export class BaseAPI {
   // Reference: "github:overleaf/overleaf/services/web/frontend/js/ide/connection/ConnectionManager.js#L137"
   _initSocketV0(identity: Identity, query?: string) {
     const url = new URL(this.url).origin + (query ?? "");
-    return (Socket.client.connect() as any)(url, {
-      reconnetc: false,
+    // Deno.connect({hostname: url})で良さそうな気がする
+    return (require("socket.io-client").connect as any)(url, {
+      reconnect: false,
       "force new connection": true,
       extraHeaders: {
         Cookie: identity.cookies,
@@ -798,4 +797,5 @@ Deno.test("test_fetchUserId", async () => {
   const cookie = Deno.env.get("OVERLEAF_COOKIE") as string;
   const res = await api.cookiesLogin(cookie);
   console.log(res);
+  
 });
