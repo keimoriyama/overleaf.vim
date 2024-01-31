@@ -259,14 +259,8 @@ export class BaseAPI {
   // Reference: "github:overleaf/overleaf/services/web/frontend/js/ide/connection/ConnectionManager.js#L137"
   _initSocketV0(identity: Identity, query?: string) {
     const url = new URL(this.url).origin + (query ?? "");
-    // Deno.connect({hostname: url})で良さそうな気がする
-    return (require("socket.io-client").connect as any)(url, {
-      reconnect: false,
-      "force new connection": true,
-      extraHeaders: {
-        Cookie: identity.cookies,
-      },
-    });
+    const socket = new WebSocket(url);
+    return socket;
   }
 
   async passportLogin(
@@ -576,6 +570,55 @@ export class BaseAPI {
     };
   }
 
+  async getFileFromClsi(identity: Identity, url: string, compileGroup: string) {
+    url = url.replace(/^\/+/g, "");
+    this.setIdentity(identity);
+    const content = await this.download(url);
+    return {
+      type: "success",
+      content: new Uint8Array(content),
+    };
+  }
+
+  async getProjectSettings(identity: Identity, projectId: string) {
+    this.setIdentity(identity);
+    return this.request("GET", `project/${projectId}`, undefined, (res) => {
+      const body = res || "";
+      const learnedWordsMatch =
+        /<meta\s+name="ol-learnedWords"\s+data-type="json"\s+content="(\[.*?\])">/
+          .exec(
+            body,
+          );
+      const learnedWords = learnedWordsMatch !== null
+        ? JSON.parse(learnedWordsMatch[1].replace(/&quot;/g, '"'))
+        : [];
+      const languagesMatch =
+        /<meta\s+name="ol-languages"\s+data-type="json"\s+content="(\[.*?\])">/
+          .exec(
+            body,
+          );
+      const languages = languagesMatch !== null
+        ? (JSON.parse(languagesMatch[1].replace(/&quot;/g, '"')) as {
+          code: string;
+          name: string;
+        }[])
+        : [];
+      languages.length && languages.unshift({ name: "Off", code: "" });
+      const compilers = [
+        { code: "pdflatex", name: "pdfLaTex" },
+        { code: "latex", name: "LaTex" },
+        { code: "xelatex", name: "XeLaTex" },
+        { code: "lualatex", name: "LuaLaTex" },
+      ];
+      const settings = {
+        learnedWords,
+        languages,
+        compilers,
+      } as ProjectSettingsSchema;
+      return { settings };
+    });
+  }
+
   async addDoc(
     identity: Identity,
     projectId: string,
@@ -797,5 +840,4 @@ Deno.test("test_fetchUserId", async () => {
   const cookie = Deno.env.get("OVERLEAF_COOKIE") as string;
   const res = await api.cookiesLogin(cookie);
   console.log(res);
-  
 });

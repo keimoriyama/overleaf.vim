@@ -5,6 +5,7 @@ import {
   UrlLinkedFileProvider,
 } from "../api/extendedBase.ts";
 import { Buffer } from "https://deno.land/std@0.139.0/node/buffer.ts";
+import { BaseAPI } from "../api/base.ts";
 import { GlobalStateManager } from "../utils/globalStateManager.ts";
 import { MemberEntity, ProjectSettingsSchema } from "../api/base.ts";
 import { SocketIOAPI, UpdateSchema } from "../api/socketio.ts";
@@ -136,6 +137,7 @@ export class VirtualFileSystem {
       this.socket = res.socket;
     } else {
       // Error
+      throw new Error("server initialization Error");
     }
   }
   async init(): Promise<ProjectEntity> {
@@ -247,7 +249,8 @@ export class VirtualFileSystem {
                 content = content.slice(0, op.p) + op.i + content.slice(op.p);
               } else if (op.d) {
                 const deleteUtf8 = Buffer.from(op.d, "ascii").toString("utf8");
-                content = content.slice(0, op.p) +
+                content =
+                  content.slice(0, op.p) +
                   content.slice(op.p + deleteUtf8.length);
               }
             });
@@ -312,11 +315,11 @@ export class VirtualFileSystem {
     path?: string,
   ):
     | {
-      parentFolder: FolderEntity;
-      fileEntity: FileEntity;
-      fileType: FileType;
-      path: string;
-    }
+        parentFolder: FolderEntity;
+        fileEntity: FileEntity;
+        fileType: FileType;
+        path: string;
+      }
     | undefined {
     if (!this.root) {
       console.log("File not Found");
