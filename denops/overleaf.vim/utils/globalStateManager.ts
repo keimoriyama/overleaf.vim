@@ -1,4 +1,4 @@
-import { Identity, BaseAPI, ProjectPersist } from "../api/base.ts";
+import { BaseAPI, Identity, ProjectPersist } from "../api/base.ts";
 import { SocketIOAPI } from "../api/socketio.ts";
 import { ExtendedBaseAPI } from "../api/extendedBase.ts";
 import { Context } from "../context.ts";
@@ -133,7 +133,7 @@ export class GlobalStateManager {
     }
   }
 
-  await async fetchServerProjects(
+  static async fetchServerProjects(
     context: Context,
     api: BaseAPI,
     name: string,
@@ -167,7 +167,7 @@ export class GlobalStateManager {
         return projects;
       } else {
         if (res.message !== undefined) {
-          // vscode.window.showErrorMessage(res.message);
+          console.log(res.message);
         }
         return [];
       }

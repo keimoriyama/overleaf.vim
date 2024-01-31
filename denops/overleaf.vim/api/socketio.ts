@@ -7,7 +7,8 @@ import {
   FolderEntity,
   ProjectEntity,
 } from "../core/remoteFileSystemProvider.ts";
-import {promisify} from "node:util"
+import { promisify } from "node:util";
+import { Buffer } from "https://deno.land/std@0.139.0/node/buffer.ts";
 // import { EventBus } from "../utils/eventBus.ts";
 // import { SocketIOAlt } from "./socketioAlt.ts";
 
@@ -121,10 +122,7 @@ export class SocketIOAPI {
         break;
     }
     // create emit
-    this.socket.emit[promisify.custom] = (
-      event: string,
-      ...args: any[]
-    ) => {
+    this.socket.emit[promisify.custom] = (event: string, ...args: any[]) => {
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => {
           reject("timeout");
@@ -140,7 +138,7 @@ export class SocketIOAPI {
         });
       });
     };
-	// denoではrequireが使えないので、変更する必要がある
+    // denoではrequireが使えないので、変更する必要がある
     this.emit = promisify(this.socket.emit).bind(this.socket);
     this.initInternalHanders();
   }
@@ -240,12 +238,9 @@ export class SocketIOAPI {
           );
           break;
         case handlers.onFileChanged:
-          this.socket.on(
-            "otUpdateAPplied",
-            (update: UpdateSchema) => {
-              handler(update);
-            },
-          );
+          this.socket.on("otUpdateAPplied", (update: UpdateSchema) => {
+            handler(update);
+          });
           break;
         case handlers.onDisconnected:
           this.socket.on("disconnect", () => {
@@ -279,12 +274,9 @@ export class SocketIOAPI {
           );
           break;
         case handlers.onSpellCheckLanguageUpdated:
-          this.socket.on(
-            "spellCheckLanguageUpdated",
-            (language: string) => {
-              handler(language);
-            },
-          );
+          this.socket.on("spellCheckLanguageUpdated", (language: string) => {
+            handler(language);
+          });
           break;
         case handlers.onCompilerUpdated:
           this.socket.on("compilerUpdated", (compiler: string) => {
@@ -339,7 +331,7 @@ export class SocketIOAPI {
         );
         const rejectPromise = new Promise((_, reject) => {
           this.socket.on("connectionRejected", (err: any) => {
-            this.scheme = "v2", reject(err.message);
+            (this.scheme = "v2"), reject(err.message);
           });
         });
         return Promise.race([joinPromise, rejectPromise, timeoutPromise]);
@@ -352,17 +344,17 @@ export class SocketIOAPI {
    * @param {string} docId - The document id.
    * @returns {Promise}
    */
-  // joinDoc(docId: string) {
-  //   return this.emit("joinDoc", docId, { encodeRanges: true }).then(
-  //     (returns: [Array<string>, number, Array<any>, any]) => {
-  //       const [docLinesAscii, version, updates, ranges] = returns;
-  //       const docLines = docLinesAscii.map((line) =>
-  //         Buffer.from(line, "ascii").toSting("utf-8")
-  //       );
-  //       return { docLines, version, updates, ranges };
-  //     },
-  //   );
-  // }
+  joinDoc(docId: string) {
+    return this.emit("joinDoc", docId, { encodeRanges: true }).then(
+      (returns: [Array<string>, number, Array<any>, any]) => {
+        const [docLinesAscii, version, updates, ranges] = returns;
+        const docLines = docLinesAscii.map((line) =>
+          Buffer.from(line, "ascii").toSting("utf-8")
+        );
+        return { docLines, version, updates, ranges };
+      },
+    );
+  }
 
   /**
    * Reference: services/web/frontend/js/ide/editor/Document.js#L591

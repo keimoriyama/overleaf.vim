@@ -209,10 +209,9 @@ export class BaseAPI {
 
   constructor(url: string) {
     this.url = url;
-    this.agent =
-      new URL(url).protocol === "http:"
-        ? new httpAgent({ keepAlive: true })
-        : new httpsAgent({ keepAlive: true });
+    this.agent = new URL(url).protocol === "http:"
+      ? new httpAgent({ keepAlive: true })
+      : new httpsAgent({ keepAlive: true });
   }
 
   private async getCsrfToken(): Promise<Identity> {
@@ -262,13 +261,13 @@ export class BaseAPI {
   // Reference: "github:overleaf/overleaf/services/web/frontend/js/ide/connection/ConnectionManager.js#L137"
   _initSocketV0(identity: Identity, query?: string) {
     const url = new URL(this.url).origin + (query ?? "");
-    // return (Socket.client.connect() as any)(url, {
-    //   reconnetc: false,
-    //   "force new connection": true,
-    //   extraHeaders: {
-    //     "Cookie": identity.cookies,
-    //   },
-    // });
+    return (Socket.client.connect() as any)(url, {
+      reconnetc: false,
+      "force new connection": true,
+      extraHeaders: {
+        Cookie: identity.cookies,
+      },
+    });
   }
 
   async passportLogin(
@@ -389,17 +388,13 @@ export class BaseAPI {
         });
         break;
       case "POST":
-        const content_type =
-          body instanceof FormData
-            ? undefined
-            : { "Content-Type": "application/json" };
-        const raw_body =
-          body instanceof FormData
-            ? body
-            : JSON.stringify({
-                _csrf: this.identity.csrfToken,
-                ...body,
-              });
+        const content_type = body instanceof FormData
+          ? undefined
+          : { "Content-Type": "application/json" };
+        const raw_body = body instanceof FormData ? body : JSON.stringify({
+          _csrf: this.identity.csrfToken,
+          ...body,
+        });
         res = await fetch(this.url + route, {
           method: "POST",
           redirect: "manual",

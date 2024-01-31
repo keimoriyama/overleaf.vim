@@ -4,8 +4,10 @@ import {
   ProjectLinkedFileProvider,
   UrlLinkedFileProvider,
 } from "../api/extendedBase.ts";
+import { Buffer } from "https://deno.land/std@0.139.0/node/buffer.ts";
 import { GlobalStateManager } from "../utils/globalStateManager.ts";
 import { MemberEntity, ProjectSettingsSchema } from "../api/base.ts";
+import { SocketIOAPI, UpdateSchema } from "../api/socketio.ts";
 
 export type FileType = "doc" | "file" | "folder" | "outputs";
 export type FolderKey = "docs" | "fileRefs" | "folders" | "outputs";
@@ -104,7 +106,7 @@ export class VirtualFileSystem {
   private socket: SocketIOAPI;
   private publicId?: string;
   private userId: string;
-  private isDirty: boolean;
+  private isDirty: boolean = true;
   private initializing?: Promise<ProjectEntity>;
   private retryConnection = 0;
   public readonly projectName: string;
@@ -124,7 +126,11 @@ export class VirtualFileSystem {
     this.projectName = projectName;
     this.userId = userId;
     this.projectId = projectId;
-    const res = GlobalStateManager.initSocketIOAPI(this.serverName, projectId);
+    const res = GlobalStateManager.initSocketIOAPI(
+      this.context,
+      this.serverName,
+      projectId,
+    );
     if (res) {
       this.api = res.api;
       this.socket = res.socket;
@@ -151,19 +157,21 @@ export class VirtualFileSystem {
     }
     this.remoteWatch();
     this.root = undefined;
-    return this.socket.joinProject(this.projectId).then(async (project) => {
-      const identity = await GlobalStateManager.authenticate(
-        this.context,
-        this.serverName,
-      );
-      project.settings = (
-        await this.api.getProjectSettings(identity, this.projectId)
-      ).settings!;
-      this.root = project;
-    });
+    return this.socket
+      .joinProject(this.projectId)
+      .then(async (project: any) => {
+        const identity = await GlobalStateManager.authenticate(
+          this.context,
+          this.serverName,
+        );
+        project.settings = (
+          await this.api.getProjectSettings(identity, this.projectId)
+        ).settings!;
+        this.root = project;
+      });
   }
   private remoteWatch(): void {
-    this.sotcket.updateEventHandlers({
+    this.socket.updateEvendHanlders({
       onDisconnected: () => {
         if (this.root === undefined) {
           return;
@@ -220,23 +228,26 @@ export class VirtualFileSystem {
           );
         }
       },
-      onFileCahnged: (update: UpdateSchema) => {
+      onFileChanged: (update: UpdateSchema) => {
         const res = this._resolveById(update.doc);
         if (res === undefined) {
           return;
         }
         const doc = res.fileEntity as DocumentEntity;
         if (update.v === doc.version) {
-          doc.version += 1;
+          if (doc.version === undefined) {
+            doc.version = 0;
+          } else {
+            doc.version += 1;
+          }
           if (update.op && doc.remoteCache !== undefined) {
             let content = doc.remoteCache;
-            update.op.forEach((op) => {
+            update.op.forEach((op: any) => {
               if (op.i) {
                 content = content.slice(0, op.p) + op.i + content.slice(op.p);
               } else if (op.d) {
                 const deleteUtf8 = Buffer.from(op.d, "ascii").toString("utf8");
-                content =
-                  content.slice(0, op.p) +
+                content = content.slice(0, op.p) +
                   content.slice(op.p + deleteUtf8.length);
               }
             });
@@ -301,16 +312,16 @@ export class VirtualFileSystem {
     path?: string,
   ):
     | {
-        parentFolder: FolderEntity;
-        fileEntity: FileEntity;
-        fileType: FileType;
-        path: string;
-      }
+      parentFolder: FolderEntity;
+      fileEntity: FileEntity;
+      fileType: FileType;
+      path: string;
+    }
     | undefined {
     if (!this.root) {
       console.log("File not Found");
     }
-    root = root || this.root.rootFolder[0];
+    root = root || this.root!.rootFolder[0];
     path = path || "/";
     if (root._id === entityId) {
       return { parentFolder: root, fileType: "folder", fileEntity: root, path };
@@ -344,9 +355,9 @@ export class VirtualFileSystem {
       return undefined;
     }
   }
-  async openFile(uri): Promise<Uint8Array> {
+  async openFile(uri: string): Promise<Uint8Array> {
     const { fileType, fileEntity } = await this._resolveUri(uri);
-    if (!fileEntity) {
+    if (fileEntity === undefined) {
       console.log("File not Found");
     }
     if (fileType === "doc") {
@@ -355,7 +366,7 @@ export class VirtualFileSystem {
         const content = doc.remoteCache;
         return new TextEncoder().encode(content);
       } else {
-        const res = await this.socket.joinDoc(fileEntity._id);
+        const res = await this.socket.joinDoc(fileEntity!._id);
         const content = res.docLines.join("\n");
         doc.version = res.version;
         doc.remoteCache = content;
@@ -373,7 +384,7 @@ export class VirtualFileSystem {
             (fileEntity as OutputFileEntity).url,
             "standard",
           )
-          .then((res) => {
+          .then((res: any) => {
             if (res.type === "success") {
               return res.content;
             } else {
@@ -381,6 +392,18 @@ export class VirtualFileSystem {
             }
           });
       });
+    } else {
+      const fileId = fileEntity!._id;
+      const identity = await GlobalStateManager.authenticate(
+        this.context,
+        this.serverName,
+      );
+      const res = await this.api.getFile(identity, this.projectId, fileId);
+      if (res.type === "success" && res.content) {
+        return res.content;
+      } else {
+        return new Uint8Array(0);
+      }
     }
   }
   private insertEntity(
