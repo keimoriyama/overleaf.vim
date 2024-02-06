@@ -8,6 +8,8 @@ import {
   FolderEntity,
   OutputFileEntity,
 } from "../types.ts";
+import { GlobalStateManager } from "../utils/globalStateManager.ts";
+import { Context } from "../context.ts";
 
 export interface Identity {
   csrfToken: string;
@@ -834,7 +836,12 @@ export class BaseAPI {
     }
   }
 }
-
+Deno.test("getfile", async () => {
+  const api = new BaseAPI("https://www.overleaf.com/");
+  const context = new Context();
+  const serverName = "www.overleaf.com";
+  const identity = await GlobalStateManager.authenticate(context, serverName);
+});
 Deno.test("test_fetchUserId", async () => {
   const api = new BaseAPI("https://www.overleaf.com/");
   const cookie = Deno.env.get("OVERLEAF_COOKIE") as string;
