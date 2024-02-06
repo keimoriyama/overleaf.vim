@@ -7,7 +7,7 @@ import {
   FileType,
   FolderEntity,
   OutputFileEntity,
-} from "../core/remoteFileSystemProvider.ts";
+} from "../types.ts";
 
 export interface Identity {
   csrfToken: string;

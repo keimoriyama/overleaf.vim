@@ -1,5 +1,5 @@
 import { BaseAPI, Identity, ProjectPersist } from "../api/base.ts";
-import { SocketIOAPI } from "../api/socketio.ts";
+// import { SocketIOAPI } from "../api/socketio.ts";
 import { ExtendedBaseAPI } from "../api/extendedBase.ts";
 import { Context } from "../context.ts";
 
@@ -184,21 +184,21 @@ export class GlobalStateManager {
       : Promise.reject();
   }
 
-  static initSocketIOAPI(context: Context, name: string, projectId: string) {
-    const persists = context.globalState;
-    const server = persists[name];
-
-    if (server.login !== undefined) {
-      const api = new ExtendedBaseAPI(server.url);
-      const socket = new SocketIOAPI(
-        server.url,
-        api,
-        server.login.identity,
-        projectId,
-      );
-      return { api, socket };
-    }
-  }
+  // static initSocketIOAPI(context: Context, name: string, projectId: string) {
+  //   const persists = context.globalState;
+  //   const server = persists[name];
+  //
+  //   if (server.login !== undefined) {
+  //     const api = new ExtendedBaseAPI(server.url);
+  //     const socket = new SocketIOAPI(
+  //       server.url,
+  //       api,
+  //       server.login.identity,
+  //       projectId,
+  //     );
+  //     return { api, socket };
+  //   }
+  // }
 
   static getServerProjectSCMPersists(
     context: Context,
@@ -242,6 +242,18 @@ export class GlobalStateManager {
   }
 }
 
+// Deno.test("initSocketIOAPI", () => {
+//   const context = new Context();
+//   const serverName = "overleaf";
+//   const projectId = "64e1a331f85a03922010b0f6";
+//   const res = GlobalStateManager.initSocketIOAPI(
+//     context,
+//     serverName,
+//     projectId,
+//   );
+//   console.log(res);
+// });
+//
 // Deno.test("CookieLogin", async () => {
 //   const api = new BaseAPI("https://www.overleaf.com/");
 //   const cookie = Deno.env.get("OVERLEAF_COOKIE") as string;
