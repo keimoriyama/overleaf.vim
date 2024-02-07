@@ -230,34 +230,6 @@ export class BaseAPI {
     }
   }
 
-  private async getUserId(cookies: string) {
-    const res = await fetch(this.url + "project", {
-      method: "GET",
-      redirect: "manual",
-      headers: {
-        Connection: "keep-alive",
-        Cookie: cookies,
-      },
-    });
-    const body = await res.text();
-    const userIdMatch = body.match(
-      /<meta\s+name="ol-user_id"\s+content="([^"]*)">/,
-    );
-    const userEmailMatch = body.match(
-      /<meta\s+name="ol-usersEmail"\s+content="([^"]*)">/,
-    );
-    const csrfTokenMatch = body.match(
-      /<meta\s+name="ol-csrfToken"\s+content="([^"]*)">/,
-    );
-    if (userIdMatch !== null && csrfTokenMatch !== null) {
-      const userId = userIdMatch[1];
-      const csrfToken = csrfTokenMatch[1];
-      const userEmail = userEmailMatch ? userEmailMatch[1] : "";
-      return { userId, userEmail, csrfToken };
-    } else {
-      return undefined;
-    }
-  }
   // Reference: "github:overleaf/overleaf/services/web/frontend/js/ide/connection/ConnectionManager.js#L137"
   _initSocketV0(identity: Identity, query?: string) {
     const url = new URL(this.url).origin + (query ?? "");
@@ -353,6 +325,7 @@ export class BaseAPI {
         identity.cookies = `${identity.cookies}; ${cookies}`;
       }
     }
+    await res.body?.cancel();
     return identity;
   }
 
@@ -795,7 +768,7 @@ export class BaseAPI {
     );
   }
 
-  async indexAll(identity: Identity, projectId: string) {
+  indexAll(identity: Identity, projectId: string) {
     this.setIdentity(identity);
     return this.request(
       "POST",
@@ -836,15 +809,19 @@ export class BaseAPI {
     }
   }
 }
+
 Deno.test("getfile", async () => {
   const api = new BaseAPI("https://www.overleaf.com/");
   const context = new Context();
   const serverName = "www.overleaf.com";
+  const projectId = "xxx";
+  const fileId = "xxx";
   const identity = await GlobalStateManager.authenticate(context, serverName);
+  api.getFile(identity, projectId, fileId);
 });
+
 Deno.test("test_fetchUserId", async () => {
   const api = new BaseAPI("https://www.overleaf.com/");
   const cookie = Deno.env.get("OVERLEAF_COOKIE") as string;
-  const res = await api.cookiesLogin(cookie);
-  console.log(res);
+  console.log(await api.cookiesLogin(cookie));
 });

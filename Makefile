@@ -8,7 +8,7 @@ lint:
 	deno lint --unstable denops
 
 test:
-	deno test --unstable -A ${TSTEST}
+	deno test -A ${TSTEST}
 
 format:
 	deno fmt denops
