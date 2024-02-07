@@ -2,6 +2,7 @@ import { Agent as httpsAgent } from "https://deno.land/std@0.145.0/node/https.ts
 import { Agent as httpAgent } from "https://deno.land/std@0.145.0/node/http.ts";
 import { contentType } from "https://deno.land/std@0.213.0/media_types/mod.ts";
 import { Buffer } from "https://deno.land/std@0.139.0/node/buffer.ts";
+import { connect } from "https://cdn.skypack.dev/socket.io-client";
 import {
   FileEntity,
   FileType,
@@ -233,9 +234,13 @@ export class BaseAPI {
   // Reference: "github:overleaf/overleaf/services/web/frontend/js/ide/connection/ConnectionManager.js#L137"
   async _initSocket(identity: Identity, query?: string) {
     const url = new URL(this.url).origin + (query ?? "");
-    console.log(url, this.url);
-    const socket = new WebSocket(url);
-    return socket;
+    return connect(url, {
+      reconnection: false,
+      forceNew: true,
+      extraHeaders: {
+        Cookie: identity.cookies,
+      },
+    });
   }
 
   async passportLogin(
@@ -830,7 +835,7 @@ Deno.test("getfile", async () => {
 Deno.test("test_fetchUserId", async () => {
   const api = new BaseAPI("https://www.overleaf.com/");
   const cookie = Deno.env.get("OVERLEAF_COOKIE") as string;
-  // console.log(await api.cookiesLogin(cookie));
+  const _ = await api.cookiesLogin(cookie);
 });
 
 // Deno.test("init Socket", async () => {
