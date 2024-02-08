@@ -11,6 +11,7 @@ import {
 } from "../types.ts";
 import { GlobalStateManager } from "../utils/globalStateManager.ts";
 import { Context } from "../context.ts";
+import { assert } from "https://deno.land/std@0.83.0/testing/asserts.ts";
 
 export interface Identity {
   csrfToken: string;
@@ -401,7 +402,7 @@ export class BaseAPI {
       const response = callback && callback(_res);
       return {
         type: "success",
-        response,
+        ...response,
       } as ResponseSchema;
     } else {
       res = res || { status: "undefined", text: () => "" };
@@ -416,7 +417,7 @@ export class BaseAPI {
     if (this.identity === undefined) {
       return Promise.reject();
     }
-    let content: Buffer[] = [];
+    let content: Uint8Array[] = [];
     while (true) {
       const res = await fetch(this.url + route, {
         method: "GET",
@@ -427,15 +428,24 @@ export class BaseAPI {
           Cookie: this.identity.cookies,
         },
       });
+      // console.log(await res.body?.getReader().read());
+      const reader = await res.body?.getReader().read();
+      if (reader === undefined || reader?.value === undefined) {
+        break;
+      }
+      console.log(reader.value, res.status);
       if (res.status === 200) {
-        content.push(Buffer.from(await res.arrayBuffer()));
+        // content.push(await res.arrayBuffer());
+        content.concat(reader.value);
       } else if (res.status === 206) {
-        content.push(Buffer.from(await res.arrayBuffer()));
+        // content.push(await res.arrayBuffer());
+        content.concat(reader.value);
       } else {
         break;
       }
     }
-    return Buffer.concat(content);
+    console.log(content);
+    return content;
   }
 
   async logout(identity: Identity): Promise<ResponseSchema> {
@@ -468,10 +478,15 @@ export class BaseAPI {
     projectId: string,
   ): Promise<ResponseSchema> {
     this.setIdentity(identity);
-    return this.request("GET", `project/${projectId}/entites`, {}, (res) => {
-      const entities = JSON.parse(res!).entities;
-      return { entities };
-    });
+    return this.request(
+      "GET",
+      `project/${projectId}/entites`,
+      undefined,
+      (res) => {
+        const entities = JSON.parse(res!).entities;
+        return { entities };
+      },
+    );
   }
 
   async newProject(
@@ -543,6 +558,7 @@ export class BaseAPI {
   async getFile(identity: Identity, projectId: string, fileId: string) {
     this.setIdentity(identity);
     const content = await this.download(`project/${projectId}/file/${fileId}`);
+    // console.log(new Uint8Array(content));
     return {
       type: "success",
       // content: new Uint8Array(content),
@@ -556,7 +572,8 @@ export class BaseAPI {
     const content = await this.download(url);
     return {
       type: "success",
-      content: new Uint8Array(content),
+      // content: new Uint8Array(content),
+      content: content,
     };
   }
 
@@ -761,7 +778,7 @@ export class BaseAPI {
       stopOnFirstError: false,
     };
     this.setIdentity(identity);
-    return this.request(
+    return await this.request(
       "POST",
       `proejct/${projectId}/compile?auto_compile=true`,
       body,
@@ -773,15 +790,27 @@ export class BaseAPI {
     );
   }
 
-  indexAll(identity: Identity, projectId: string) {
+  async indexAll(identity: Identity, projectId: string) {
     this.setIdentity(identity);
-    return this.request(
+    return await this.request(
       "POST",
       `project/${projectId}/references/indexAll`,
       {
         shouldBroadcast: false,
       },
       undefined,
+    );
+  }
+  async getMetadata(identity: Identity, projectId: string) {
+    this.setIdentity(identity);
+    return this.request(
+      "GET",
+      `project/${projectId}/metadata`,
+      undefined,
+      (res) => {
+        const meta = JSON.parse(res!) as MetadataResponseScheme;
+        return { meta };
+      },
     );
   }
 
@@ -813,7 +842,38 @@ export class BaseAPI {
       return undefined;
     }
   }
+  async filteredProjectJson(identity: Identity) {
+    this.setIdentity(identity);
+    const res = await this.getProjectsJson(identity);
+    return res.projects?.filter(
+      (project) => !(project.archived || project.trashed),
+    );
+  }
 }
+
+Deno.test("get file", async () => {
+  const api = new BaseAPI("https://www.overleaf.com/");
+  const context = new Context();
+  const serverName = "overleaf";
+  const cookie = Deno.env.get("OVERLEAF_COOKIE") as string;
+  const auth = { cookies: cookie };
+  const _ = await GlobalStateManager.loginServer(
+    context,
+    api,
+    "overleaf",
+    auth,
+  );
+  const identity = await GlobalStateManager.authenticate(context, serverName);
+  const res = await api.filteredProjectJson(identity);
+  if (res === undefined) {
+    return;
+  }
+  const r1 = res[0];
+  // console.log(r1.name);
+  const entity = await api.getMetadata(identity, r1.id);
+  // console.log(entity);
+  const file = await api.getFile(identity, r1.id, "64e1a331f85a03922010b0fb");
+});
 
 Deno.test("getfile", async () => {
   const api = new BaseAPI("https://www.overleaf.com/");
@@ -828,7 +888,7 @@ Deno.test("getfile", async () => {
     auth,
   );
   const identity = await GlobalStateManager.authenticate(context, serverName);
-  const res = await api.getProjectsJson(identity);
+  const res = await api.filteredProjectJson(identity);
   // console.log(res);
 });
 
@@ -851,6 +911,5 @@ Deno.test("init Socket", async () => {
   );
   const identity = await GlobalStateManager.authenticate(context, "overleaf");
   const socket = await api._initSocket(identity);
-  // console.log(socket);
   socket.close();
 });
