@@ -581,6 +581,7 @@ export class BaseAPI {
     this.setIdentity(identity);
     return this.request("GET", `project/${projectId}`, undefined, (res) => {
       const body = res || "";
+      console.log(body);
       const learnedWordsMatch =
         /<meta\s+name="ol-learnedWords"\s+data-type="json"\s+content="(\[.*?\])">/
           .exec(
@@ -842,13 +843,13 @@ export class BaseAPI {
       return undefined;
     }
   }
-  async filteredProjectJson(identity: Identity) {
-    this.setIdentity(identity);
-    const res = await this.getProjectsJson(identity);
-    return res.projects?.filter(
-      (project) => !(project.archived || project.trashed),
-    );
-  }
+  // async filteredProjectJson(identity: Identity) {
+  //   this.setIdentity(identity);
+  //   const res = await this.getProjectsJson(identity);
+  //   return res.projects?.filter(
+  //     (project) => !(project.archived || project.trashed),
+  //   );
+  // }
 }
 
 Deno.test("get file", async () => {
@@ -864,18 +865,19 @@ Deno.test("get file", async () => {
     auth,
   );
   const identity = await GlobalStateManager.authenticate(context, serverName);
-  const res = await api.filteredProjectJson(identity);
-  if (res === undefined) {
-    return;
+  const projects = await api.getProjectsJson(identity);
+  let projectId = "";
+  for (const project of projects.projects!) {
+    if (project.name === "イラレ用数式") {
+      projectId = project.id;
+    }
   }
-  const r1 = res[0];
-  // console.log(r1.name);
-  const entity = await api.getMetadata(identity, r1.id);
-  // console.log(entity);
-  const file = await api.getFile(identity, r1.id, "64e1a331f85a03922010b0fb");
+  console.log(projectId);
+  const res = (await api.getProjectSettings(identity, projectId)).settings!;
+  console.log(res);
 });
 
-Deno.test("getfile", async () => {
+Deno.test("get project info", async () => {
   const api = new BaseAPI("https://www.overleaf.com/");
   const context = new Context();
   const serverName = "overleaf";
@@ -888,7 +890,7 @@ Deno.test("getfile", async () => {
     auth,
   );
   const identity = await GlobalStateManager.authenticate(context, serverName);
-  const res = await api.filteredProjectJson(identity);
+  const res = await api.getProjectsJson(identity);
   // console.log(res);
 });
 
