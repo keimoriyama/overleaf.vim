@@ -433,7 +433,7 @@ export class BaseAPI {
       if (reader === undefined || reader?.value === undefined) {
         break;
       }
-      console.log(reader.value, res.status);
+      // console.log(reader.value, res.status);
       if (res.status === 200) {
         // content.push(await res.arrayBuffer());
         content.concat(reader.value);
@@ -444,7 +444,7 @@ export class BaseAPI {
         break;
       }
     }
-    console.log(content);
+    // console.log(content);
     return content;
   }
 
@@ -581,7 +581,7 @@ export class BaseAPI {
     this.setIdentity(identity);
     return this.request("GET", `project/${projectId}`, undefined, (res) => {
       const body = res || "";
-      console.log(body);
+      // console.log(body);
       const learnedWordsMatch =
         /<meta\s+name="ol-learnedWords"\s+data-type="json"\s+content="(\[.*?\])">/
           .exec(
@@ -872,9 +872,9 @@ Deno.test("get file", async () => {
       projectId = project.id;
     }
   }
-  console.log(projectId);
+  // console.log(projectId);
   const res = (await api.getProjectSettings(identity, projectId)).settings!;
-  console.log(res);
+  // console.log(res);
 });
 
 Deno.test("get project info", async () => {
