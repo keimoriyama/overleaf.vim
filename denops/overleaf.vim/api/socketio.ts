@@ -78,7 +78,7 @@ type ConnectionScheme = "v1" | "v2";
 export class SocketIOAPI {
   private scheme: ConnectionScheme = "v1";
   private record?: Promise<ProjectEntity>;
-  private _handlers: Array<EventHandler> = [];
+  private _handlers: Array<EventsHandler> = [];
 
   private socket?: any;
   private emit: any;
@@ -102,6 +102,7 @@ export class SocketIOAPI {
         this.socket = this.api._initSocket(this.identity, query);
         break;
     }
+    this.socket.emit = {};
     this.socket.emit[promisify.custom] = (event: string, ...args: any[]) => {
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => {
@@ -262,7 +263,7 @@ export class SocketIOAPI {
     });
   }
   async joinProject(project_id: string): Promise<ProjectEntity> {
-    const timeoutPromise = new Promise((_, reject) => {
+    const timeoutPromise: Promise<any> = new Promise((_, reject) => {
       setTimeout(() => {
         reject("timeout");
       }, 5000);
