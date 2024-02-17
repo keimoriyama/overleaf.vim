@@ -3,7 +3,9 @@ import { Agent as httpAgent } from "https://deno.land/std@0.145.0/node/http.ts";
 import { contentType } from "https://deno.land/std@0.213.0/media_types/mod.ts";
 import { Buffer } from "https://deno.land/std@0.139.0/node/buffer.ts";
 // import { connect } from "https://cdn.skypack.dev/socket.io-client";
-import { connect, Socket } from "npm:socket.io-client";
+import { io, Socket } from "npm:socket.io-client";
+// import { connect, Socket } from "https://deno.land/std@0.158.0/node/net.ts";
+import { promisify } from "node:util";
 import {
   FileEntity,
   FileType,
@@ -235,15 +237,17 @@ export class BaseAPI {
   }
 
   // Reference: "github:overleaf/overleaf/services/web/frontend/js/ide/connection/ConnectionManager.js#L137"
-  async _initSocket(identity: Identity, query?: string): Promise<Socket> {
+  _initSocket(identity: Identity, query?: string) {
     const url = new URL(this.url).origin + (query ?? "");
-    return connect(url, {
+    const socket = io(url, {
       reconnection: false,
       forceNew: true,
       extraHeaders: {
         Cookie: identity.cookies,
       },
     });
+    const connect = socket.connect();
+    return connect;
   }
 
   async passportLogin(
@@ -845,13 +849,6 @@ export class BaseAPI {
       return undefined;
     }
   }
-  // async filteredProjectJson(identity: Identity) {
-  //   this.setIdentity(identity);
-  //   const res = await this.getProjectsJson(identity);
-  //   return res.projects?.filter(
-  //     (project) => !(project.archived || project.trashed),
-  //   );
-  // }
 }
 
 Deno.test("get file", async () => {
@@ -861,7 +858,7 @@ Deno.test("get file", async () => {
   const serverName = "overleaf";
   const cookie = Deno.env.get("OVERLEAF_COOKIE") as string;
   const auth = { cookies: cookie };
-  const _ = await GlobalStateManager.loginServer(
+  const _res = await GlobalStateManager.loginServer(
     context,
     api,
     "overleaf",

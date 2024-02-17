@@ -9,6 +9,7 @@ import {
 import { BaseAPI, Identity, ProjectMessageResponseSchema } from "./base.ts";
 import { promisify } from "node:util";
 
+import { Socket } from "npm:socket.io-client";
 export interface UpdateUserSchema {
   id: string;
   user_id: string;
@@ -80,7 +81,7 @@ export class SocketIOAPI {
   private record?: Promise<ProjectEntity>;
   private _handlers: Array<EventsHandler> = [];
 
-  private socket?: any;
+  socket?: Socket | any;
   private emit: any;
   constructor(
     private url: string,
@@ -94,6 +95,7 @@ export class SocketIOAPI {
     switch (this.scheme) {
       case "v1":
         this.record = undefined;
+        // ここにfetchのawait漏れがあるみたい？
         this.socket = this.api._initSocket(this.identity);
         break;
       case "v2":
@@ -102,7 +104,6 @@ export class SocketIOAPI {
         this.socket = this.api._initSocket(this.identity, query);
         break;
     }
-    this.socket.emit = {};
     this.socket.emit[promisify.custom] = (event: string, ...args: any[]) => {
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => {
@@ -120,7 +121,7 @@ export class SocketIOAPI {
       });
       return Promise.resolve([waitPromise, timeoutPromise]);
     };
-    this.emit = promisify(this.socket.emit).bind(this.socket);
+    this.emit = promisify(this.socket.emit[promisify.custom]).bind(this.socket);
     this.initInternalHandlers();
   }
 
@@ -147,6 +148,7 @@ export class SocketIOAPI {
       });
     }
   }
+
   disconnect() {
     this.socket.disconnect();
   }

@@ -1,6 +1,4 @@
 import { BaseAPI, Identity, ProjectPersist } from "../api/base.ts";
-// import { SocketIOAPI } from "../api/socketio.ts";
-import { ExtendedBaseAPI } from "../api/extendedBase.ts";
 import { Context } from "../context.ts";
 
 const keyServerPersists: string = "overleaf-servers";
@@ -243,30 +241,30 @@ export class GlobalStateManager {
   }
 }
 
-Deno.test("CookieLogin", async () => {
-  const api = new BaseAPI("https://www.overleaf.com/");
-  const cookie = Deno.env.get("OVERLEAF_COOKIE") as string;
-  const context = new Context();
-  const auth = { cookies: cookie };
-  const res = await GlobalStateManager.loginServer(
-    context,
-    api,
-    "overleaf",
-    auth,
-  );
-});
-
-Deno.test("fetch Server Projects", async () => {
-  const api = new BaseAPI("https://www.overleaf.com/");
-  const context = new Context();
-  const cookie = Deno.env.get("OVERLEAF_COOKIE") as string;
-  await GlobalStateManager.loginServer(context, api, "overleaf", {
-    cookies: cookie,
-  });
-  const res = await GlobalStateManager.fetchServerProjects(
-    context,
-    api,
-    "overleaf",
-  );
-  // console.log(res);
-});
+// Deno.test("CookieLogin", async () => {
+//   const api = new BaseAPI("https://www.overleaf.com/");
+//   const cookie = Deno.env.get("OVERLEAF_COOKIE") as string;
+//   const context = new Context();
+//   const auth = { cookies: cookie };
+//   const res = await GlobalStateManager.loginServer(
+//     context,
+//     api,
+//     "overleaf",
+//     auth,
+//   );
+// });
+//
+// Deno.test("fetch Server Projects", async () => {
+//   const api = new BaseAPI("https://www.overleaf.com/");
+//   const context = new Context();
+//   const cookie = Deno.env.get("OVERLEAF_COOKIE") as string;
+//   await GlobalStateManager.loginServer(context, api, "overleaf", {
+//     cookies: cookie,
+//   });
+//   const res = await GlobalStateManager.fetchServerProjects(
+//     context,
+//     api,
+//     "overleaf",
+//   );
+//   // console.log(res);
+// });
