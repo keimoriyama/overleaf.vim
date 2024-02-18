@@ -4,7 +4,7 @@ import { Context } from "./context.ts";
 import { GlobalStateManager } from "./utils/globalStateManager.ts";
 import { SocketIOAPI } from "./api/socketio.ts";
 import { globals } from "https://deno.land/x/denops_std@v6.0.1/variable/mod.ts";
-import { ensure, isString } from "./deps.ts";
+import { ensure, is } from "./deps.ts";
 import { ProjectEntity } from "./types.ts";
 
 class OverleafApp {
@@ -15,23 +15,34 @@ class OverleafApp {
   private publicId: string;
   private userId: string;
   private isDirty: boolean;
-  private identity: Identity;
   private initializing?: Promise<ProjectEntity>;
   private retryConnection: number = 0;
   private denops: Denops;
-  public readonly projectName: string;
-  public readonly serverName: string = "overleaf";
-  public readonly projectId: string;
+  private projectName: string = "";
+  private projectId: string = "";
+  private serverName: string = "overleaf";
 
-  constructor(denops: Denops, context: Context, identity: Identity) {
-    this.projectName = ensure(
-      await globals.get(this.denops, "overleaf_project_name"),
-      isString,
-    );
-    this.identity = identity;
+  constructor(denops: Denops, context: Context) {
     this.context = context;
     this.denops = denops;
-    this.projectId = await this.getProjectId(this.identity, this.projectName);
+    const res = GlobalStateManager.initSocketIOAPI(
+      this.context,
+      this.serverName,
+      this.projectId,
+    );
+
+    if (res) {
+      this.api = res.api;
+      this.socket = res.socket;
+    }
+  }
+  async init() {
+    this.projectName = await globals.get(this.denops, "overleaf_project_name");
+    const identity = await GlobalStateManager.authenticate(
+      this.context,
+      this.serverName,
+    );
+    this.projectId = await this.getProjectId(identity, this.projectName);
   }
 
   async getProjectId(identity: Identity, projectName: string) {
@@ -42,33 +53,26 @@ class OverleafApp {
         projectInfo = project;
       }
     }
-    if (!projectInfo.id) {
-      // ここのメッセージは要検討
-      throw new Error(`Project ${projectName} not found.`);
-    }
     return projectInfo.id;
   }
 }
-export async function main(denops: Denops): void {
+
+export async function main(denops: Denops): Promise<void> {
   console.log("Hello, world!");
   const url = "https://www.overleaf.com/";
-  const api = new BaseAPI(url);
   const context = new Context();
   const serverName = "overleaf";
   const cookie = Deno.env.get("OVERLEAF_COOKIE") as string;
-  const auth = { cookies: cookie };
-  const _res = await GlobalStateManager.loginServer(
-    context,
-    api,
-    "overleaf",
-    auth,
-  );
+  // const api = new BaseAPI(url);
+  // const auth = { cookies: cookie };
+  // const _res = await GlobalStateManager.loginServer(
+  // 	context,
+  // 	api,
+  // 	"overleaf",
+  // 	auth,
+  // );
   const identity = await GlobalStateManager.authenticate(context, serverName);
-  const projects = await api.getProjectsJson(identity);
-  let projectId = "";
-  for (const project of projects.projects!) {
-    if (project.name === "イラレ用数式") {
-      projectId = project.id;
-    }
-  }
+  let projectName: string = await globals.get(denops, "overleaf_project_name");
+  projectName = ensure(projectName, is.String);
+  const app = new OverleafApp(denops, context);
 }

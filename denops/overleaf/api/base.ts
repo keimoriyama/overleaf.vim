@@ -1,8 +1,7 @@
 import { Agent as httpsAgent } from "https://deno.land/std@0.145.0/node/https.ts";
 import { Agent as httpAgent } from "https://deno.land/std@0.145.0/node/http.ts";
 import { contentType } from "https://deno.land/std@0.213.0/media_types/mod.ts";
-import { Buffer } from "https://deno.land/std@0.139.0/node/buffer.ts";
-import { io, Socket } from "npm:socket.io-client";
+import { io } from "npm:socket.io-client";
 import {
   FileEntity,
   FileType,
@@ -11,7 +10,6 @@ import {
 } from "../types.ts";
 import { GlobalStateManager } from "../utils/globalStateManager.ts";
 import { Context } from "../context.ts";
-import { SocketIOAPI } from "./socketio.ts";
 
 export interface Identity {
   csrfToken: string;
