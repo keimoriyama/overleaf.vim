@@ -1,0 +1,20 @@
+*overleaf.vim* Overleaf support for Vim and Neovim.
+
+==============================================================================
+1. Introduction                                     *overleaf-introduction*
+
+==============================================================================
+2. Installation                                     *overleaf-installation*
+
+==============================================================================
+3. Usage                                            *overleaf-usage*
+
+==============================================================================
+4. Variables                                        *overleaf-variables*
+
+*g:overleaf_project_name
+	Specify thename of the project to be synced with Overleaf.
+	This option is required.
+
+	Default: ""
+

@@ -2,10 +2,7 @@ import { Agent as httpsAgent } from "https://deno.land/std@0.145.0/node/https.ts
 import { Agent as httpAgent } from "https://deno.land/std@0.145.0/node/http.ts";
 import { contentType } from "https://deno.land/std@0.213.0/media_types/mod.ts";
 import { Buffer } from "https://deno.land/std@0.139.0/node/buffer.ts";
-// import { connect } from "https://cdn.skypack.dev/socket.io-client";
 import { io, Socket } from "npm:socket.io-client";
-// import { connect, Socket } from "https://deno.land/std@0.158.0/node/net.ts";
-import { promisify } from "node:util";
 import {
   FileEntity,
   FileType,
@@ -15,7 +12,6 @@ import {
 import { GlobalStateManager } from "../utils/globalStateManager.ts";
 import { Context } from "../context.ts";
 import { SocketIOAPI } from "./socketio.ts";
-import { assert } from "https://deno.land/std@0.83.0/testing/asserts.ts";
 
 export interface Identity {
   csrfToken: string;
@@ -851,14 +847,37 @@ export class BaseAPI {
   }
 }
 
-Deno.test("get file", async () => {
-  const url = "https://www.overleaf.com/";
-  const api = new BaseAPI(url);
+// Deno.test("get file", async () => {
+//   const url = "https://www.overleaf.com/";
+//   const api = new BaseAPI(url);
+//   const context = new Context();
+//   const serverName = "overleaf";
+//   const cookie = Deno.env.get("OVERLEAF_COOKIE") as string;
+//   const auth = { cookies: cookie };
+//   const _res = await GlobalStateManager.loginServer(
+//     context,
+//     api,
+//     "overleaf",
+//     auth,
+//   );
+//   const identity = await GlobalStateManager.authenticate(context, serverName);
+//   const projects = await api.getProjectsJson(identity);
+//   let projectId = "";
+//   for (const project of projects.projects!) {
+//     if (project.name === "イラレ用数式") {
+//       projectId = project.id;
+//     }
+//   }
+//   const sockets = new SocketIOAPI(url, api, identity, projectId);
+// });
+
+Deno.test("get project info", async () => {
+  const api = new BaseAPI("https://www.overleaf.com/");
   const context = new Context();
   const serverName = "overleaf";
   const cookie = Deno.env.get("OVERLEAF_COOKIE") as string;
   const auth = { cookies: cookie };
-  const _res = await GlobalStateManager.loginServer(
+  const _ = await GlobalStateManager.loginServer(
     context,
     api,
     "overleaf",
@@ -866,32 +885,15 @@ Deno.test("get file", async () => {
   );
   const identity = await GlobalStateManager.authenticate(context, serverName);
   const projects = await api.getProjectsJson(identity);
-  let projectId = "";
+  let projectInfo: ResponseSchema;
   for (const project of projects.projects!) {
     if (project.name === "イラレ用数式") {
-      projectId = project.id;
+      projectInfo = project;
     }
   }
-  const sockets = new SocketIOAPI(url, api, identity, projectId);
+  console.log(projectInfo);
 });
 
-// Deno.test("get project info", async () => {
-//   const api = new BaseAPI("https://www.overleaf.com/");
-//   const context = new Context();
-//   const serverName = "overleaf";
-//   const cookie = Deno.env.get("OVERLEAF_COOKIE") as string;
-//   const auth = { cookies: cookie };
-//   const _ = await GlobalStateManager.loginServer(
-//     context,
-//     api,
-//     "overleaf",
-//     auth,
-//   );
-//   const identity = await GlobalStateManager.authenticate(context, serverName);
-//   const res = await api.getProjectsJson(identity);
-//   // console.log(res);
-// });
-//
 // Deno.test("test_fetchUserId", async () => {
 //   const api = new BaseAPI("https://www.overleaf.com/");
 //   const cookie = Deno.env.get("OVERLEAF_COOKIE") as string;
