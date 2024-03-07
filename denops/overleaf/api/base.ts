@@ -869,28 +869,28 @@ export class BaseAPI {
 //   const sockets = new SocketIOAPI(url, api, identity, projectId);
 // });
 
-Deno.test("get project info", async () => {
-  const api = new BaseAPI("https://www.overleaf.com/");
-  const context = new Context();
-  const serverName = "overleaf";
-  const cookie = Deno.env.get("OVERLEAF_COOKIE") as string;
-  const auth = { cookies: cookie };
-  const _ = await GlobalStateManager.loginServer(
-    context,
-    api,
-    "overleaf",
-    auth,
-  );
-  const identity = await GlobalStateManager.authenticate(context, serverName);
-  const projects = await api.getProjectsJson(identity);
-  let projectInfo: ResponseSchema;
-  for (const project of projects.projects!) {
-    if (project.name === "イラレ用数式") {
-      projectInfo = project;
-    }
-  }
-  console.log(projectInfo);
-});
+// Deno.test("get project info", async () => {
+//   const api = new BaseAPI("https://www.overleaf.com/");
+//   const context = new Context();
+//   const serverName = "overleaf";
+//   const cookie = Deno.env.get("OVERLEAF_COOKIE") as string;
+//   const auth = { cookies: cookie };
+//   const _ = await GlobalStateManager.loginServer(
+//     context,
+//     api,
+//     "overleaf",
+//     auth,
+//   );
+//   const identity = await GlobalStateManager.authenticate(context, serverName);
+//   const projects = await api.getProjectsJson(identity);
+//   let projectInfo: ResponseSchema;
+//   for (const project of projects.projects!) {
+//     if (project.name === "イラレ用数式") {
+//       projectInfo = project;
+//     }
+//   }
+//   console.log(projectInfo);
+// });
 
 // Deno.test("test_fetchUserId", async () => {
 //   const api = new BaseAPI("https://www.overleaf.com/");

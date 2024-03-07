@@ -58,21 +58,16 @@ class OverleafApp {
 }
 
 export async function main(denops: Denops): Promise<void> {
-  console.log("Hello, world!");
   const url = "https://www.overleaf.com/";
   const context = new Context();
   const serverName = "overleaf";
   const cookie = Deno.env.get("OVERLEAF_COOKIE") as string;
-  // const api = new BaseAPI(url);
-  // const auth = { cookies: cookie };
-  // const _res = await GlobalStateManager.loginServer(
-  // 	context,
-  // 	api,
-  // 	"overleaf",
-  // 	auth,
-  // );
+  const api = new BaseAPI(url);
+  const auth = { cookies: cookie };
+  await GlobalStateManager.loginServer(context, api, "overleaf", auth);
   const identity = await GlobalStateManager.authenticate(context, serverName);
   let projectName: string = await globals.get(denops, "overleaf_project_name");
+  console.log(projectName);
   projectName = ensure(projectName, is.String);
   const app = new OverleafApp(denops, context);
 }

@@ -179,6 +179,7 @@ export class GlobalStateManager {
   static authenticate(context: Context, name: string) {
     const persists = context.globalState;
     const server = persists[name];
+
     if (server?.login === undefined) {
       return Promise.reject();
     }
@@ -254,6 +255,7 @@ export class GlobalStateManager {
 //     "overleaf",
 //     auth,
 //   );
+//   const _ = await GlobalStateManager.authenticate(context, "overleaf");
 // });
 //
 // Deno.test("fetch Server Projects", async () => {
