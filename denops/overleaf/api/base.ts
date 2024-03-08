@@ -208,6 +208,9 @@ export class BaseAPI {
   private identity?: Identity;
 
   constructor(url: string) {
+    if (url.substr(url.length - 1) !== "/") {
+      url = url + "/";
+    }
     this.url = url;
     this.agent = new URL(url).protocol === "http:"
       ? new httpAgent({ keepAlive: true })
@@ -468,6 +471,7 @@ export class BaseAPI {
   async getProjectsJson(identity: Identity): Promise<ResponseSchema> {
     this.setIdentity(identity);
     return await this.request("POST", "api/project", {}, (res) => {
+      console.log(JSON.parse(res!));
       const projects = (JSON.parse(res!) as any).projects;
       return { projects };
     });

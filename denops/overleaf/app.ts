@@ -36,6 +36,7 @@ class OverleafApp {
       this.socket = res.socket;
     }
   }
+
   async init() {
     this.projectName = await globals.get(this.denops, "overleaf_project_name");
     const identity = await GlobalStateManager.authenticate(
@@ -66,8 +67,6 @@ export async function main(denops: Denops): Promise<void> {
   const auth = { cookies: cookie };
   await GlobalStateManager.loginServer(context, api, "overleaf", auth);
   const identity = await GlobalStateManager.authenticate(context, serverName);
-  let projectName: string = await globals.get(denops, "overleaf_project_name");
-  console.log(projectName);
-  projectName = ensure(projectName, is.String);
   const app = new OverleafApp(denops, context);
+  await app.init();
 }
