@@ -14,7 +14,8 @@
 
 *g:overleaf_project_name
 	Specify thename of the project to be synced with Overleaf.
-	This option is required.
+	If this variable is not set, the plugin will try to sync all projects in Overleaf
 
 	Default: ""
+
 

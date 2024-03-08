@@ -471,7 +471,6 @@ export class BaseAPI {
   async getProjectsJson(identity: Identity): Promise<ResponseSchema> {
     this.setIdentity(identity);
     return await this.request("POST", "api/project", {}, (res) => {
-      console.log(JSON.parse(res!));
       const projects = (JSON.parse(res!) as any).projects;
       return { projects };
     });
