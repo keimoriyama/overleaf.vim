@@ -1,7 +1,4 @@
-import { Agent as httpsAgent } from "https://deno.land/std@0.145.0/node/https.ts";
-import { Agent as httpAgent } from "https://deno.land/std@0.145.0/node/http.ts";
 import { contentType } from "https://deno.land/std@0.213.0/media_types/mod.ts";
-import { io } from "npm:socket.io-client";
 import {
   FileEntity,
   FileType,
@@ -204,7 +201,6 @@ export interface ResponseSchema {
 
 export class BaseAPI {
   private url: string;
-  private agent: httpAgent | httpsAgent;
   private identity?: Identity;
 
   constructor(url: string) {
@@ -212,9 +208,6 @@ export class BaseAPI {
       url = url + "/";
     }
     this.url = url;
-    this.agent = new URL(url).protocol === "http:"
-      ? new httpAgent({ keepAlive: true })
-      : new httpsAgent({ keepAlive: true });
   }
 
   private async getCsrfToken(): Promise<Identity> {
@@ -234,18 +227,19 @@ export class BaseAPI {
   }
 
   // Reference: "github:overleaf/overleaf/services/web/frontend/js/ide/connection/ConnectionManager.js#L137"
-  _initSocket(identity: Identity, query?: string) {
-    const url = new URL(this.url).origin + (query ?? "");
-    const socket = io(url, {
-      reconnection: false,
-      forceNew: true,
-      extraHeaders: {
-        Cookie: identity.cookies,
-      },
-    });
-    const connect = socket.connect();
-    return connect;
-  }
+  // _initSocket(identity: Identity, query?: string) {
+  //   const url = new URL(this.url).origin + (query ?? "");
+  //   const socket = io(url, {
+  //     reconnection: false,
+  //     forceNew: true,
+  //     extraHeaders: {
+  //       Cookie: identity.cookies,
+  //     },
+  //   });
+  //   // const connect = socket.connect();
+  //   // return connect;
+  //   return socket;
+  // }
 
   async passportLogin(
     email: string,
@@ -872,28 +866,22 @@ export class BaseAPI {
 //   const sockets = new SocketIOAPI(url, api, identity, projectId);
 // });
 
-// Deno.test("get project info", async () => {
-//   const api = new BaseAPI("https://www.overleaf.com/");
-//   const context = new Context();
-//   const serverName = "overleaf";
-//   const cookie = Deno.env.get("OVERLEAF_COOKIE") as string;
-//   const auth = { cookies: cookie };
-//   const _ = await GlobalStateManager.loginServer(
-//     context,
-//     api,
-//     "overleaf",
-//     auth,
-//   );
-//   const identity = await GlobalStateManager.authenticate(context, serverName);
-//   const projects = await api.getProjectsJson(identity);
-//   let projectInfo: ResponseSchema;
-//   for (const project of projects.projects!) {
-//     if (project.name === "イラレ用数式") {
-//       projectInfo = project;
-//     }
-//   }
-//   console.log(projectInfo);
-// });
+Deno.test("get project info", async () => {
+  const api = new BaseAPI("https://www.overleaf.com/");
+  const context = new Context();
+  const serverName = "overleaf";
+  const cookie = Deno.env.get("OVERLEAF_COOKIE") as string;
+  const auth = { cookies: cookie };
+  const _ = await GlobalStateManager.loginServer(
+    context,
+    api,
+    "overleaf",
+    auth,
+  );
+  const identity = await GlobalStateManager.authenticate(context, serverName);
+  const projects = await api.getProjectsJson(identity);
+  console.log(projects);
+});
 
 // Deno.test("test_fetchUserId", async () => {
 //   const api = new BaseAPI("https://www.overleaf.com/");
@@ -914,5 +902,4 @@ export class BaseAPI {
 //   );
 //   const identity = await GlobalStateManager.authenticate(context, "overleaf");
 //   const socket = await api._initSocket(identity);
-//   socket.close();
 // });

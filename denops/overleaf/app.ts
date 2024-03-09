@@ -8,29 +8,28 @@ import { ensure, is } from "./deps.ts";
 import { FileEntity, FileType, ProjectEntity } from "./types.ts";
 
 class OverleafApp {
-  private root: ProjectEntity;
+  private root?: ProjectEntity;
   private context: Context;
-  private api: BaseAPI;
-  private socket: SocketIOAPI;
-  private publicId: string;
-  private userId: string;
-  private isDirty: boolean;
+  private api?: BaseAPI;
+  private socket?: SocketIOAPI;
+  private publicId = "";
+  private userId = "";
+  private isDirty = false;
   private initializing?: Promise<ProjectEntity>;
-  private retryConnection: number = 0;
+  private retryConnection = 0;
   private denops: Denops;
-  private projectName: string = "";
-  private projectId: string = "";
-  private serverName: string = "overleaf";
+  private projectName = "";
+  private projectId = "";
+  private serverName = "overleaf";
 
   constructor(denops: Denops, context: Context) {
     this.context = context;
-    this.denops = denops;
     const res = GlobalStateManager.initSocketIOAPI(
       this.context,
       this.serverName,
       this.projectId,
     );
-
+    this.denops = denops;
     if (res) {
       this.api = res.api;
       this.socket = res.socket;
@@ -51,12 +50,18 @@ class OverleafApp {
   }
 
   async getProjectId(identity: Identity, projectName: string) {
+    if (this.api === undefined) {
+      throw new Error("API is not initialized");
+    }
     const projects = await this.api.getProjectsJson(identity);
-    let projectInfo: ProjectPersist;
+    let projectInfo: ProjectPersist = {} as ProjectPersist;
     for (const project of projects.projects!) {
       if (project.name === projectName) {
         projectInfo = project;
       }
+    }
+    if (projectInfo === ({} as ProjectPersist)) {
+      throw new Error(`Project ${projectName} not found`);
     }
     return projectInfo.id;
   }
@@ -66,6 +71,9 @@ class OverleafApp {
       this.retryConnection = 0;
       console.log("Failed to connect to Overleaf");
       throw new Error("Failed to connect to Overleaf");
+    }
+    if (this.socket === undefined || this.api === undefined) {
+      throw new Error("API is not initialized");
     }
     if (this.retryConnection > 0) {
       this.socket.init();
@@ -79,6 +87,9 @@ class OverleafApp {
           this.context,
           this.serverName,
         );
+        if (this.socket === undefined || this.api === undefined) {
+          throw new Error("API is not initialized");
+        }
         project.settings = (
           await this.api.getProjectSettings(identity, this.projectId)
         ).settings!;
@@ -86,12 +97,16 @@ class OverleafApp {
         return project;
       })
       .catch((err) => {
+        console.log(err);
         this.retryConnection += 1;
         return this.initializingPromise;
       });
   }
 
   private remoteWatch(): void {
+    if (this.socket === undefined) {
+      throw new Error("API is not initialized");
+    }
     this.socket.updateEventHandlers({
       onDisconnected: () => {
         if (this.root === undefined) {
@@ -148,14 +163,12 @@ class OverleafApp {
 }
 
 export async function main(denops: Denops): Promise<void> {
-  const url = "https://www.overleaf.com/";
   const context = new Context();
-  const serverName = "overleaf";
+  const url = "https://www.overleaf.com/";
   const cookie = Deno.env.get("OVERLEAF_COOKIE") as string;
   const api = new BaseAPI(url);
   const auth = { cookies: cookie };
   await GlobalStateManager.loginServer(context, api, "overleaf", auth);
-  const identity = await GlobalStateManager.authenticate(context, serverName);
   const app = new OverleafApp(denops, context);
   await app.init();
 }
