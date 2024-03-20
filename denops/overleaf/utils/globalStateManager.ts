@@ -1,5 +1,5 @@
 import { BaseAPI, Identity, ProjectPersist } from "../api/base.ts";
-
+import { SocketIOAPI } from "../api/socketio.ts";
 import { ExtendedBaseAPI } from "../api/extendedBase.ts";
 import { Context } from "../context.ts";
 
@@ -186,21 +186,21 @@ export class GlobalStateManager {
     return Promise.resolve(server.login.identity);
   }
 
-  // static initSocketIOAPI(context: Context, name: string, projectId: string) {
-  //   const persists = context.globalState;
-  //   const server = persists[name];
-  //
-  //   if (server.login !== undefined) {
-  //     const api = new ExtendedBaseAPI(server.url);
-  //     const socket = new SocketIOAPI(
-  //       server.url,
-  //       api,
-  //       server.login.identity,
-  //       projectId,
-  //     );
-  //     return { api, socket };
-  //   }
-  // }
+  static initSocketIOAPI(context: Context, name: string, projectId: string) {
+    const persists = context.globalState;
+    const server = persists[name];
+
+    if (server.login !== undefined) {
+      const api = new ExtendedBaseAPI(server.url);
+      const socket = new SocketIOAPI(
+        server.url,
+        api,
+        server.login.identity,
+        projectId,
+      );
+      return { api, socket };
+    }
+  }
 
   static getServerProjectSCMPersists(
     context: Context,

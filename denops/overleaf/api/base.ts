@@ -7,6 +7,7 @@ import {
 } from "../types.ts";
 import { GlobalStateManager } from "../utils/globalStateManager.ts";
 import { Context } from "../context.ts";
+import { io } from "npm:socket.io-client";
 
 export interface Identity {
   csrfToken: string;
@@ -227,19 +228,19 @@ export class BaseAPI {
   }
 
   // Reference: "github:overleaf/overleaf/services/web/frontend/js/ide/connection/ConnectionManager.js#L137"
-  // _initSocket(identity: Identity, query?: string) {
-  //   const url = new URL(this.url).origin + (query ?? "");
-  //   const socket = io(url, {
-  //     reconnection: false,
-  //     forceNew: true,
-  //     extraHeaders: {
-  //       Cookie: identity.cookies,
-  //     },
-  //   });
-  //   // const connect = socket.connect();
-  //   // return connect;
-  //   return socket;
-  // }
+  _initSocket(identity: Identity, query?: string) {
+    const url = new URL(this.url).origin + (query ?? "");
+    const socket = io(url, {
+      reconnection: false,
+      forceNew: true,
+      extraHeaders: {
+        Cookie: identity.cookies,
+      },
+    });
+    // const connect = socket.connect();
+    // return connect;
+    return socket;
+  }
 
   async passportLogin(
     email: string,
